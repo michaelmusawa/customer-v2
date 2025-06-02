@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                     Int        @id @default(autoincrement())
+  name                   String?
+  email                  String     @unique
+  password               String?
+  emailVerified          DateTime?
+  role                   String?
+  status                 String?
+  image                  String?
+  counter                Int?
+  shift                  String?
+  records                Record[]
+  editRecordsAsAttendant EditedRecord[] @relation("AttendantRelation")
+  editRecordsAsSupervisor EditedRecord[] @relation("SupervisorRelation")
+  accounts               Account[]
+  sessions               Session[] 
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime?  @updatedAt
+}
+
+model Record {
+  id           String      @id @default(cuid())
+  ticket       String
+  recordType   String?
+  name         String
+  service      String
+  subService   String?
+  recordNumber String?
+  value        Int
+  counter      String
+  shift        String
+  userId       Int
+  editRecords  EditedRecord[]
+  user         User        @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime?   @updatedAt
+}
+
+model EditedRecord {
+  id                String   @id @default(cuid())
+  recordId          String
+  record            Record   @relation(fields: [recordId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ticket            String
+  recordType        String?
+  name              String
+  service           String
+  subService        String?
+  recordNumber      String
+  value             Int
+  counter           String
+  shift             String
+  attendantComment  String?
+  supervisorComment String?
+  status            String
+  attendantId       Int
+  supervisorId      Int?
+  attendant         User     @relation("AttendantRelation", fields: [attendantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  supervisor        User?    @relation("SupervisorRelation", fields: [supervisorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime? @updatedAt
+}
+
+model Account {
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       Int
+  expires      DateTime
+  user         User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
