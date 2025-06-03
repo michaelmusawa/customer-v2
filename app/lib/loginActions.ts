@@ -1,7 +1,8 @@
 "use server";
 
+import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
-import { signIn } from "next-auth/react";
+
 import { redirect } from "next/navigation";
 
 export async function authenticate(_currentState: unknown, formData: FormData) {
