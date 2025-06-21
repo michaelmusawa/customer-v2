@@ -4,16 +4,22 @@
 import React, { useEffect, useState } from "react";
 import { useActionState } from "react";
 import SubmitButton from "../ui/SubmitButton";
-import { addSetting, getSubservices } from "@/app/lib/settingsActions";
-import { SettingActionState } from "@/app/lib/definitions";
-import { FiX, FiPlus, FiChevronDown } from "react-icons/fi";
+import {
+  addSetting,
+  getSubservices,
+  getSettings,
+} from "@/app/lib/settingsActions";
+import type { SettingActionState } from "@/app/lib/definitions";
+import { FiX, FiPlus } from "react-icons/fi";
 
 interface Props {
-  type: "shifts" | "counters" | "stations" | "services";
+  type: "services" | "shifts" | "counters" | "stations";
   label: string;
+  /** for shift/counter adds, prefill the station */
+  station?: string;
 }
 
-export default function AddGroupModal({ type, label }: Props) {
+export default function AddGroupModal({ type, label, station }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const initial: SettingActionState = {
     message: null,
@@ -22,18 +28,32 @@ export default function AddGroupModal({ type, label }: Props) {
   };
   const [state, formAction, isPending] = useActionState(addSetting, initial);
 
-  // For services only:
+  // Only for services: manage sub-services inputs
   const [serviceName, setServiceName] = useState("");
   const [subservices, setSubservices] = useState<string[]>([""]);
   const [existingSubservices, setExistingSubservices] = useState<string[]>([]);
 
+  // Only for counters: load available shifts for this station
+  const [shifts, setShifts] = useState<string[]>([]);
+  const [selectedShift, setSelectedShift] = useState("");
+
+  // Fetch shifts when opening a counter modal
+  useEffect(() => {
+    if (isOpen && type === "counters" && station) {
+      fetch(`/api/settings/shifts?station=${encodeURIComponent(station)}`)
+        .then((r) => r.json())
+        .then((data) => setShifts(data.items || []));
+    }
+  }, [isOpen, type, station]);
+
+  // Load existing subservices when typing service name
   useEffect(() => {
     if (type === "services" && serviceName) {
       getSubservices(serviceName).then(setExistingSubservices);
     }
-  }, [serviceName, type]);
+  }, [type, serviceName]);
 
-  // Auto‑close on success
+  // auto‐close on success
   useEffect(() => {
     if (state.message) {
       const t = setTimeout(() => setIsOpen(false), 1000);
@@ -41,177 +61,226 @@ export default function AddGroupModal({ type, label }: Props) {
     }
   }, [state.message]);
 
+  const open = () => {
+    setIsOpen(true);
+    // reset dependent state
+    setServiceName("");
+    setSubservices([""]);
+    setSelectedShift("");
+  };
+
   return (
     <>
       <button
-        onClick={() => setIsOpen(true)}
-        className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg shadow transition-all duration-300 hover:shadow-md"
+        onClick={open}
+        className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg"
       >
-        <FiPlus className="text-lg" />
-        <span>Add {label}</span>
+        <FiPlus /> Add {label}
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700 animate-fade-in">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Add {label}
-                </h3>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <FiX className="text-xl text-gray-500 dark:text-gray-400" />
-                </button>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-md shadow-lg p-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold">Add {label}</h3>
+              <button onClick={() => setIsOpen(false)}>
+                <FiX />
+              </button>
+            </div>
+
+            {state.state_error && (
+              <div className="p-2 bg-red-100 text-red-700 rounded">
+                {state.state_error}
               </div>
+            )}
+            {state.message && (
+              <div className="p-2 bg-green-100 text-green-700 rounded">
+                {state.message}
+              </div>
+            )}
 
-              {state.state_error && (
-                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg">
-                  {state.state_error}
+            <form action={formAction} className="space-y-4">
+              <input type="hidden" name="type" value={type} />
+              {station && (
+                <input type="hidden" name="station" value={station} />
+              )}
+              {/* SHIFT ADD */}
+              {type === "shifts" && (
+                <div>
+                  <label className="block text-sm font-medium">
+                    Shift name
+                  </label>
+                  <input
+                    name="value"
+                    required
+                    className="w-full border rounded px-2 py-1"
+                  />
+                  {state.errors?.value && (
+                    <p className="text-red-600 text-sm">
+                      {state.errors.value[0]}
+                    </p>
+                  )}
                 </div>
               )}
 
-              {state.message && (
-                <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg">
-                  {state.message}
-                </div>
-              )}
-
-              <form action={formAction} className="space-y-5">
-                <input type="hidden" name="type" value={type} />
-
-                {/* Common single‑value */}
-                {type !== "services" && (
+              {/* COUNTER ADD */}
+              {type === "counters" && (
+                <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                      {label} name
+                    <label className="block text-sm font-medium">Shift</label>
+                    <select
+                      name="shift"
+                      required
+                      value={selectedShift}
+                      onChange={(e) => setSelectedShift(e.target.value)}
+                      className="w-full border rounded px-2 py-1"
+                    >
+                      <option value="">Select shift</option>
+                      {shifts.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                    {state.errors?.shift && (
+                      <p className="text-red-600 text-sm">
+                        {state.errors.shift[0]}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium">
+                      Counter name
                     </label>
-                    <div className="relative">
-                      <input
-                        name="value"
-                        required
-                        className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                      />
-                    </div>
+                    <input
+                      name="value"
+                      required
+                      className="w-full border rounded px-2 py-1"
+                    />
                     {state.errors?.value && (
-                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                      <p className="text-red-600 text-sm">
                         {state.errors.value[0]}
                       </p>
                     )}
                   </div>
-                )}
+                </>
+              )}
 
-                {/* Services: name + subservices */}
-                {type === "services" && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                        Service name
-                      </label>
-                      <input
-                        name="name"
-                        value={serviceName}
-                        onChange={(e) => setServiceName(e.target.value)}
-                        required
-                        className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2.5 px-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                      />
-                      {state.errors?.name && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                          {state.errors.name[0]}
-                        </p>
-                      )}
-                    </div>
+              {/* STATION ADD */}
+              {type === "stations" && (
+                <div>
+                  <label className="block text-sm font-medium">
+                    Station name
+                  </label>
+                  <input
+                    name="value"
+                    required
+                    className="w-full border rounded px-2 py-1"
+                  />
+                  {state.errors?.value && (
+                    <p className="text-red-600 text-sm">
+                      {state.errors.value[0]}
+                    </p>
+                  )}
+                </div>
+              )}
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                        Sub-services
-                      </label>
+              {/* SERVICES ADD */}
+              {type === "services" && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium">
+                      Service name
+                    </label>
+                    <input
+                      name="name"
+                      value={serviceName}
+                      onChange={(e) => setServiceName(e.target.value)}
+                      required
+                      className="w-full border rounded px-2 py-1"
+                    />
+                    {state.errors?.name && (
+                      <p className="text-red-600 text-sm">
+                        {state.errors.name[0]}
+                      </p>
+                    )}
+                  </div>
 
-                      <div className="space-y-2">
-                        {subservices.map((_, idx) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            <input
-                              name="subservices"
-                              value={subservices[idx]}
-                              onChange={(e) => {
-                                const arr = [...subservices];
-                                arr[idx] = e.target.value;
-                                setSubservices(arr);
-                              }}
-                              placeholder={`Sub-service #${idx + 1}`}
-                              required
-                              className="flex-1 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                            />
-                            {subservices.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const arr = [...subservices];
-                                  arr.splice(idx, 1);
-                                  setSubservices(arr);
-                                }}
-                                className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"
-                              >
-                                <FiX />
-                              </button>
-                            )}
-                          </div>
+                  <div>
+                    <label className="block text-sm font-medium">
+                      Sub-services
+                    </label>
+                    {subservices.map((_, i) => (
+                      <div key={i} className="flex gap-2 mb-2">
+                        <input
+                          name="subservices"
+                          value={subservices[i]}
+                          onChange={(e) => {
+                            const arr = [...subservices];
+                            arr[i] = e.target.value;
+                            setSubservices(arr);
+                          }}
+                          required
+                          className="flex-1 border rounded px-2 py-1"
+                        />
+                        {subservices.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSubservices((s) => s.filter((_, j) => j !== i))
+                            }
+                            className="text-red-600"
+                          >
+                            <FiX />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setSubservices((s) => [...s, ""])}
+                      className="text-blue-600 text-sm"
+                    >
+                      + Add another
+                    </button>
+                    {state.errors?.subservices && (
+                      <p className="text-red-600 text-sm">
+                        {state.errors.subservices[0]}
+                      </p>
+                    )}
+                  </div>
+
+                  {existingSubservices.length > 0 && (
+                    <div className="pt-2">
+                      <h4 className="text-sm font-medium">
+                        Existing Sub-services
+                      </h4>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {existingSubservices.map((sub) => (
+                          <span
+                            key={sub}
+                            className="px-2 py-1 bg-gray-100 rounded text-sm"
+                          >
+                            {sub}
+                          </span>
                         ))}
                       </div>
-
-                      <button
-                        type="button"
-                        className="mt-2 flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
-                        onClick={() => setSubservices([...subservices, ""])}
-                      >
-                        <FiPlus className="text-base" />
-                        <span>Add another sub-service</span>
-                      </button>
-
-                      {state.errors?.subservices && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                          {state.errors.subservices[0]}
-                        </p>
-                      )}
                     </div>
+                  )}
+                </>
+              )}
 
-                    {existingSubservices.length > 0 && (
-                      <div className="pt-2">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Existing Sub-services
-                          </span>
-                          <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {existingSubservices.map((sub, i) => (
-                            <span
-                              key={i}
-                              className="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm rounded-lg"
-                            >
-                              {sub}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                <div className="flex justify-end space-x-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsOpen(false)}
-                    className="px-5 py-2.5 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors duration-300"
-                  >
-                    Cancel
-                  </button>
-                  <SubmitButton isPending={isPending} label="Add" />
-                </div>
-              </form>
-            </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="px-3 py-1 border rounded"
+                >
+                  Cancel
+                </button>
+                <SubmitButton isPending={isPending} label="Add" />
+              </div>
+            </form>
           </div>
         </div>
       )}

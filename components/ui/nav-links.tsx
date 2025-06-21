@@ -59,7 +59,7 @@ export default function NavLinks({ role }: { role?: string }) {
       name: "Settings",
       href: `/dashboard/${role}/settings`,
       icon: <FiSettings className="text-lg" />,
-      role: ["admin"],
+      role: ["admin", "supervisor"],
     },
     {
       name: "Reports",

@@ -1,48 +1,64 @@
 // app/settings/page.tsx
 import React, { Suspense } from "react";
+
 import TableSkeleton from "@/components/ui/TableSkeleton";
 import AddGroupModal from "@/components/settings/AddGroupModal";
 import SettingList from "@/components/settings/SettingList";
+import { auth } from "@/auth";
+import { getUser } from "@/app/lib/loginActions";
 
 export const metadata = { title: "Settings" };
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const session = await auth(); // returns { user: { role, station, … } }
+  const email = session?.user?.email;
+  const user = await getUser(email ?? "");
+
+  // we’ll render all lists, but only show the “Add” buttons when allowed
+  const listTypes = ["shifts", "counters", "stations"] as const;
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Settings
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Manage system configurations and service options
-          </p>
-        </div>
+    <main className="…">
+      <div className="…">
+        <header className="…">
+          <h1>Settings</h1>
+          <p>Manage system configurations and service options</p>
+        </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {(["shifts", "counters", "stations"] as const).map((type) => (
-            <section
-              key={type}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 p-5 transition-all duration-300 hover:shadow-lg"
-            >
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-                  {type[0].toUpperCase() + type.slice(1)}
-                </h2>
-                <AddGroupModal type={type} label={type.slice(0, -1)} />
-              </div>
-              <Suspense fallback={<TableSkeleton />}>
-                <SettingList type={type} />
-              </Suspense>
-            </section>
-          ))}
+          {listTypes.map((type) => {
+            // only supervisors can add shifts & counters
+            // only admins can add stations
+            const canAdd =
+              type === "stations"
+                ? user?.role === "admin"
+                : ["shifts", "counters"].includes(type)
+                ? user?.role === "supervisor"
+                : false;
 
-          {/* Services section - full width */}
-          <section className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 p-5 col-span-full transition-all duration-300 hover:shadow-lg">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-                Services
-              </h2>
+            return (
+              <section key={type} className="…">
+                <div className="…">
+                  <h2>{type[0].toUpperCase() + type.slice(1)}</h2>
+                  {canAdd && (
+                    <AddGroupModal
+                      type={type}
+                      label={type.slice(0, -1)}
+                      station={type !== "stations" ? user?.station : undefined}
+                    />
+                  )}
+                </div>
+                <Suspense fallback={<TableSkeleton />}>
+                  <SettingList type={type} />
+                </Suspense>
+              </section>
+            );
+          })}
+
+          {/* services remain open to all */}
+          <section className="col-span-full …">
+            <div className="…">
+              <h2>Services</h2>
               <AddGroupModal type="services" label="Service" />
             </div>
             <Suspense fallback={<TableSkeleton />}>

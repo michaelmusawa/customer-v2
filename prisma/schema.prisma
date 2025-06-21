@@ -156,7 +156,7 @@ model Shift {
 
 model Counter {
   id         Int      @id @default(autoincrement())
-  name       String   @unique
+  name       String   
   createdAt  DateTime @default(now()) @map("created_at")
 
   // NEW: each counter belongs to exactly one shift
@@ -164,6 +164,8 @@ model Counter {
   shift      Shift    @relation(fields: [shiftId], references: [id])
 
   users      User[]   // existing back‑relation
+
+  @@unique([shiftId, name])
 
   @@map("counters")
 }
