@@ -1,0 +1,158 @@
+// components/report/FullServiceRankingModal.tsx
+"use client";
+
+import React, { useState } from "react";
+import { FiX } from "react-icons/fi";
+import type {
+  ServiceRankingItem,
+  ShiftServiceSection,
+} from "@/app/lib/reportActions";
+
+interface Props {
+  items: ServiceRankingItem[] | ShiftServiceSection[];
+  rankBy: boolean;
+  groupByShiftFlag: boolean;
+}
+
+export default function FullServiceRankingModal({
+  items,
+  rankBy,
+  groupByShiftFlag,
+}: Props) {
+  const [open, setOpen] = useState(false);
+  const isByShift = groupByShiftFlag;
+
+  // Render totals row
+  function renderTotalsRow(data: ServiceRankingItem[]) {
+    const totalCount = data.reduce((sum, i) => sum + i.count, 0);
+    const totalClients = data.reduce((sum, i) => sum + i.clients, 0);
+    const totalValue = data.reduce((sum, i) => sum + i.value, 0);
+
+    return (
+      <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 font-semibold">
+        <td colSpan={2} className="py-3 px-4 text-right">
+          Totals
+        </td>
+        <td className="py-3 px-4 text-right">{totalCount}</td>
+        <td className="py-3 px-4 text-right">{totalClients}</td>
+        <td className="py-3 px-4 text-right">{`KES ${totalValue.toLocaleString()}`}</td>
+      </tr>
+    );
+  }
+
+  // Render a table given an array
+  function renderTable(data: ServiceRankingItem[]) {
+    return (
+      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 mb-6 bg-white dark:bg-gray-800">
+        <table className="min-w-full">
+          <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
+            <tr>
+              <th className="py-3 px-5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Rank
+              </th>
+              <th className="py-3 px-5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Service
+              </th>
+              <th className="py-3 px-5 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Count
+              </th>
+              <th className="py-3 px-5 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Clients
+              </th>
+              <th className="py-3 px-5 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Value
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            {data.map((item, idx) => (
+              <tr
+                key={item.service}
+                className="hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors"
+              >
+                <td className="py-4 px-5 whitespace-nowrap font-medium">
+                  <span
+                    className={`text-xs font-semibold px-2.5 py-0.5 rounded-full
+                    ${
+                      idx === 0
+                        ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200"
+                        : idx === 1
+                        ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200"
+                        : idx === 2
+                        ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200"
+                        : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                    }`}
+                  >
+                    {idx + 1}
+                  </span>
+                </td>
+                <td className="py-4 px-5 font-medium text-gray-900 dark:text-gray-100">
+                  {item.service}
+                </td>
+                <td className="py-4 px-5 text-right">{item.count}</td>
+                <td className="py-4 px-5 text-right">
+                  <span className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-md text-xs font-medium">
+                    {item.clients}
+                  </span>
+                </td>
+                <td className="py-4 px-5 text-right font-bold text-green-600 dark:text-green-400">
+                  KES {item.value.toLocaleString()}
+                </td>
+              </tr>
+            ))}
+            {renderTotalsRow(data)}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="px-4 py-2 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white text-sm font-medium rounded-lg transition-all shadow-md hover:shadow-lg"
+      >
+        View Full Service Ranking
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-b from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-gray-700">
+            {/* Header */}
+            <div className="flex justify-between items-center px-7 py-5 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700">
+              <div>
+                <h3 className="text-2xl font-bold dark:text-white">
+                  Full Service Ranking {isByShift && "(by Shift)"}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Comprehensive service performance metrics
+                </p>
+              </div>
+              <button
+                onClick={() => setOpen(false)}
+                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+              >
+                <FiX className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto flex-1 px-6 py-5">
+              {isByShift
+                ? (items as ShiftServiceSection[]).map((section) => (
+                    <div key={section.shift} className="mb-8">
+                      <h4 className="text-lg font-medium mb-3 dark:text-gray-300 bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 py-2 px-4 rounded-lg inline-block">
+                        Shift: {section.shift}
+                      </h4>
+                      {renderTable(section.items)}
+                    </div>
+                  ))
+                : renderTable(items as ServiceRankingItem[])}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

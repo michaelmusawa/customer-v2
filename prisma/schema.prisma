@@ -23,19 +23,28 @@ model User {
   role                   String?
   status                 String?
   image                  String?
-  counter                Int?
-  shift                  String?
+  token                   String?
+  shiftId           Int?             
+  shift             Shift?           @relation(fields: [shiftId], references: [id])
+  
+  counterId         Int?             
+  counter           Counter?         @relation(fields: [counterId], references: [id])
+  
+  stationId         Int?             
+  station           Station?         @relation(fields: [stationId], references: [id])
   records                Record[]
-  editRecordsAsAttendant EditedRecord[] @relation("AttendantRelation")
+  editRecordsAsBiller EditedRecord[] @relation("BillerRelation")
   editRecordsAsSupervisor EditedRecord[] @relation("SupervisorRelation")
   accounts               Account[]
   sessions               Session[] 
+  resetToken    String?     @map("password_reset_token")
+  resetExpires  DateTime?   @map("password_reset_expires")
   createdAt              DateTime   @default(now())
   updatedAt              DateTime?  @updatedAt
 }
 
 model Record {
-  id           String      @id @default(cuid())
+  id           Int           @id @default(autoincrement())
   ticket       String
   recordType   String?
   name         String
@@ -43,18 +52,19 @@ model Record {
   subService   String?
   recordNumber String?
   value        Int
-  counter      String
-  shift        String
   userId       Int
+  user         User          @relation(fields: [userId], references: [id], onDelete: NoAction)
   editRecords  EditedRecord[]
-  user         User        @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime?   @updatedAt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime?     @updatedAt
+
+  @@map("records")
 }
 
+
 model EditedRecord {
-  id                String   @id @default(cuid())
-  recordId          String
+   id            Int      @id @default(autoincrement())
+  recordId          Int
   record            Record   @relation(fields: [recordId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   ticket            String
   recordType        String?
@@ -63,17 +73,16 @@ model EditedRecord {
   subService        String?
   recordNumber      String
   value             Int
-  counter           String
-  shift             String
-  attendantComment  String?
-  supervisorComment String?
-  status            String
-  attendantId       Int
+  reason            String?
+  comment           String?
+  status            String?
+  billerId          Int
   supervisorId      Int?
-  attendant         User     @relation("AttendantRelation", fields: [attendantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  biller            User     @relation("BillerRelation", fields: [billerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   supervisor        User?    @relation("SupervisorRelation", fields: [supervisorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   createdAt         DateTime @default(now())
   updatedAt         DateTime? @updatedAt
+  
 }
 
 model Account {
@@ -114,3 +123,70 @@ model VerificationToken {
 
   @@id([identifier, token])
 }
+
+model Station {
+  id        Int     @id @default(autoincrement())
+  name      String  @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // add this:
+  shifts    Shift[] 
+
+  users     User[]  // existing back‑relation
+
+  @@map("stations")
+}
+
+model Shift {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // NEW: each shift belongs to exactly one station
+  stationId  Int
+  station    Station  @relation(fields: [stationId], references: [id])
+
+  // NEW: each shift can have many counters
+  counters   Counter[]
+
+  users      User[]   // existing back‑relation
+
+  @@map("shifts")
+}
+
+model Counter {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // NEW: each counter belongs to exactly one shift
+  shiftId    Int
+  shift      Shift    @relation(fields: [shiftId], references: [id])
+
+  users      User[]   // existing back‑relation
+
+  @@map("counters")
+}
+
+
+model Service {
+  id         Int           @id @default(autoincrement())
+  name       String        @unique
+  createdAt  DateTime      @default(now()) @map("created_at")
+  subservices Subservice[]
+
+  @@map("services")
+}
+
+model Subservice {
+  id          Int       @id @default(autoincrement())
+  serviceId   Int       @map("service_id")
+  service     Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  name        String
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@unique([serviceId, name])
+  @@map("subservices")
+}
+
+
