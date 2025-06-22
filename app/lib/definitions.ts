@@ -50,9 +50,15 @@ export type ForgotPasswordActionState = {
 // Shared action‑state
 
 export type SettingActionState = {
-  errors?: { [field: string]: string[] };
+  errors?: Partial<Record<string, string[]>>;
   state_error?: string | null;
   message?: string | null;
+};
+
+export const initialSettingState: SettingActionState = {
+  errors: {},
+  state_error: null,
+  message: null,
 };
 
 export type RecordActionState = {
@@ -71,4 +77,21 @@ export type ProfileActionState = {
   };
   state_error?: string | null;
   message?: string | null;
+};
+
+// app/lib/definitions.ts
+export interface ArchiveActionState {
+  /** form-level errors, keyed by field */
+  errors?: Partial<Record<string, string[]>>;
+  /** a top-level error not tied to a field */
+  state_error?: string | null;
+  /** a success message */
+  message?: string | null;
+}
+
+// initial state helper
+export const initialUserActionState: ArchiveActionState = {
+  errors: {},
+  state_error: null,
+  message: null,
 };

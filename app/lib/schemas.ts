@@ -77,3 +77,36 @@ export const UpdateSchema = z
       }
     }
   });
+
+export const UpdateSettingSchema = z.object({
+  type: z.enum(["services", "shifts", "counters", "stations"]),
+  id: z.preprocess((v) => Number(v), z.number().int().positive()),
+  newName: z.string().min(1, "Name is required"),
+});
+
+export const DeleteSettingSchema = z.object({
+  type: z.enum(["services", "shifts", "counters", "stations"]),
+  id: z.preprocess((v) => Number(v), z.number().int().positive()),
+});
+
+export const UpdateSubserviceSchema = z.object({
+  serviceId: z.preprocess((v) => Number(v), z.number().int().positive()),
+  oldName: z.string().min(1),
+  newName: z.string().min(1, "Sub-service name is required"),
+});
+
+export const DeleteSubserviceSchema = z.object({
+  serviceId: z.preprocess((v) => Number(v), z.number().int().positive()),
+  name: z.string().min(1),
+});
+
+export const AddSubserviceSchema = z.object({
+  type: z.literal("subservice"), // discriminator
+  serviceName: z.string().min(1),
+  subservice: z.string().min(1, "Required"),
+});
+export type AddSubserviceInput = z.infer<typeof AddSubserviceSchema>;
+
+export const ArchiveUserSchema = z.object({
+  userId: z.coerce.number().int().positive(),
+});

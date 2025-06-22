@@ -49,10 +49,11 @@ export default function AddUserModal({
   useEffect(() => {
     fetch("/api/settings/stations")
       .then((res) => res.json())
-      .then((data) => setStations(data.items));
+      .then((data) => setStations(data.items.map((s: any) => s.name)));
+
     fetch("/api/settings/shifts")
       .then((res) => res.json())
-      .then((data) => setShifts(data.items));
+      .then((data) => setShifts(data.items.map((s: any) => s.name)));
   }, []);
 
   useEffect(() => {

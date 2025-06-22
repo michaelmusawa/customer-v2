@@ -4,6 +4,7 @@ import { fetchFilteredUsers } from "@/app/lib/supervisorsActions";
 import AddUserModal from "../dashboard/AddUserModal";
 import { FiUser, FiEdit2, FiTrash2 } from "react-icons/fi";
 import Image from "next/image";
+import ArchiveUserForm from "./ArchiveUserForm";
 
 const UsersTable = async ({
   query,
@@ -41,6 +42,16 @@ const UsersTable = async ({
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
               Email
             </th>
+            {role === "biller" && (
+              <>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Shift
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Counter
+                </th>
+              </>
+            )}
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
               Status
             </th>
@@ -88,6 +99,16 @@ const UsersTable = async ({
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                 {user.email}
               </td>
+              {role === "biller" && (
+                <>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                    {user.shift}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                    {user.counter}
+                  </td>
+                </>
+              )}
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
                   Active
@@ -100,9 +121,7 @@ const UsersTable = async ({
                       <FiEdit2 className="w-4 h-4" />
                     </button>
                   </AddUserModal>
-                  <button className="p-2 text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors">
-                    <FiTrash2 className="w-4 h-4" />
-                  </button>
+                  <ArchiveUserForm userId={user.id} />
                 </div>
               </td>
             </tr>

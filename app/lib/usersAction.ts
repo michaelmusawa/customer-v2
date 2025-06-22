@@ -7,7 +7,7 @@ import { ProfileActionState, UserActionState } from "./definitions";
 import pool from "./db";
 import { randomBytes } from "crypto";
 import { sendMail } from "./loginActions";
-import { UpdateSchema } from "./schemas";
+import { ArchiveUserSchema, UpdateSchema } from "./schemas";
 import { auth } from "@/auth";
 import bcrypt from "bcryptjs";
 
@@ -320,5 +320,35 @@ export async function updateProfile(
     return {
       state_error: "Something went wrong. Please try again.",
     };
+  }
+}
+
+// 2) Server action
+export async function archiveUser(
+  prev: UserActionState,
+  formData: FormData
+): Promise<UserActionState> {
+  // parse + validate
+  const raw = Object.fromEntries(formData.entries());
+  const parsed = ArchiveUserSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      state_error: "Invalid request.",
+      errors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { userId } = parsed.data;
+  try {
+    // soft-delete: set status to 'archived'
+    await pool.query(`UPDATE "User" SET status = 'archived' WHERE id = $1`, [
+      userId,
+    ]);
+    // revalidate any pages showing users
+    revalidatePath("/dashboard");
+    return { message: "User archived." };
+  } catch (err: any) {
+    console.error("archiveUser error:", err);
+    return { state_error: "Could not archive user." };
   }
 }
