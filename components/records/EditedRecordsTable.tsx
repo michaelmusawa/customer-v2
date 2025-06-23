@@ -89,7 +89,7 @@ const EditedRecordsTable = async ({
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                {r.editedBy}
+                {role === "biller" ? "me" : r.requesterName || "Unknown"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                 <div className="flex items-center">

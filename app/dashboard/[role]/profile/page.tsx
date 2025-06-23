@@ -24,6 +24,7 @@ export default async function ProfilePage() {
   }
 
   const user = await getUser(session.user.email);
+
   if (!user) {
     return <p className="p-6 text-center">User not found.</p>;
   }

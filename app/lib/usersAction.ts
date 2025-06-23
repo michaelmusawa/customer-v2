@@ -10,6 +10,8 @@ import { sendMail } from "./loginActions";
 import { ArchiveUserSchema, UpdateSchema } from "./schemas";
 import { auth } from "@/auth";
 import bcrypt from "bcryptjs";
+import path from "path";
+import fs from "fs/promises";
 
 const AddUserSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -78,7 +80,7 @@ export async function addUser(
     );
     if (existing.rows.length) {
       return {
-        errors: { email: ["A user with this email already exists."] },
+        errors: { email: [`A user with this email ${email} already exists.`] },
       };
     }
 
@@ -271,10 +273,10 @@ export async function updateProfile(
   prev: ProfileActionState,
   formData: FormData
 ): Promise<ProfileActionState> {
-  // Parse and validate all fields including confirmPassword
+  // 1) Validate inputs
   const parsed = UpdateSchema.safeParse({
     name: formData.get("name"),
-    image: formData.get("image"),
+    image: formData.get("image") as File | null,
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
   });
@@ -282,44 +284,91 @@ export async function updateProfile(
   if (!parsed.success) {
     return {
       errors: parsed.error.flatten().fieldErrors,
+      state_error: "Please fix the errors below.",
     };
   }
 
   const { name, image, password } = parsed.data;
 
-  // get user email from session
-
+  // 2) Identify user
   const session = await auth();
-  const email = session?.user?.email || "";
+  const email = session?.user?.email;
+  if (!email) {
+    return { state_error: "Not authenticated." };
+  }
 
-  try {
-    // Build dynamic SET clauses
-    const updates = [`name = $2`, `image = $3`];
-    const params: Array<number | string | null> = [email, name, image || null];
+  // 1) Load existing image URL from the DB
+  const { rows } = await pool.query<{ image: string | null }>(
+    `SELECT image FROM "User" WHERE email = $1`,
+    [email]
+  );
 
-    if (password) {
-      const hash = await bcrypt.hash(password, 12);
-      updates.push(`password = $${params.length + 1}`);
-      params.push(hash);
+  const oldImage = rows[0]?.image;
+
+  // 3) Handle avatar upload, if any
+  let imageUrl = oldImage;
+  if (image && image.size > 0) {
+    // ensure uploads dir exists under public/images
+    const uploadDir = path.join(process.cwd(), "public", "images", "uploads");
+
+    // delete old file if it’s in our uploads folder
+    if (oldImage && oldImage.startsWith("/images/uploads/")) {
+      const oldFile = path.join(process.cwd(), "public", oldImage);
+      try {
+        await fs.unlink(oldFile);
+      } catch {
+        /* swallow not-found errors */
+      }
     }
 
-    // Execute update
-    await pool.query(
-      `UPDATE "User" SET ${updates.join(", ")} WHERE email = $1`,
-      params
-    );
+    await fs.mkdir(uploadDir, { recursive: true });
 
-    // Revalidate profile page
+    // write the new file
+    const buf = Buffer.from(await image.arrayBuffer());
+    const fileName = `${Date.now()}-${image.name.replace(/\s+/g, "_")}`;
+    const dest = path.join(uploadDir, fileName);
+    await fs.writeFile(dest, buf);
+
+    // public URL path
+    imageUrl = `/images/uploads/${fileName}`;
+  }
+
+  // 4) Build SQL
+  const setClauses: string[] = [];
+  const params: (string | null)[] = [email]; // $1
+
+  // name
+  setClauses.push(`name = $${params.length + 1}`);
+  params.push(name);
+
+  // avatar
+  if (imageUrl !== null) {
+    setClauses.push(`image = $${params.length + 1}`);
+    params.push(imageUrl);
+  }
+
+  // password
+  if (password) {
+    const hash = await bcrypt.hash(password, 12);
+    setClauses.push(`password = $${params.length + 1}`);
+    params.push(hash);
+  }
+
+  // 5) Execute
+  try {
+    const sql = `
+      UPDATE "User"
+         SET ${setClauses.join(", ")}
+       WHERE email = $1
+    `;
+    await pool.query(sql, params);
+
+    // 6) Revalidate and respond
     revalidatePath("/profile");
-
-    return {
-      message: "Profile updated successfully!",
-    };
+    return { message: "Profile updated successfully!" };
   } catch (err) {
-    console.error("Error updating profile:", err);
-    return {
-      state_error: "Something went wrong. Please try again.",
-    };
+    console.error("updateProfile error:", err);
+    return { state_error: "Something went wrong. Please try again." };
   }
 }
 

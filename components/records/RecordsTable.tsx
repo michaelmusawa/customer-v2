@@ -109,9 +109,6 @@ const RecordsTable = async ({
                       <FiEdit2 className="w-4 h-4" />
                     </button>
                   </AddRecordModal>
-                  <button className="p-2 text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors">
-                    <FiTrash2 className="w-4 h-4" />
-                  </button>
                 </div>
               </td>
             </tr>

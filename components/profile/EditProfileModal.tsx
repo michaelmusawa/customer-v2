@@ -1,10 +1,11 @@
 // components/ui/EditProfileModal.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useActionState } from "react";
 import { updateProfile } from "@/app/lib/usersAction";
 import SubmitButton from "../ui/SubmitButton";
+import Image from "next/image";
 import { FiUser, FiImage, FiLock, FiX, FiEye, FiEyeOff } from "react-icons/fi";
 
 interface EditProfileModalProps {
@@ -26,6 +27,22 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
     updateProfile,
     initialState
   );
+
+  // Only for edit: avatar file + preview URL
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    user?.avatarUrl || null
+  );
+
+  // When an avatarFile is selected, generate a data-URL preview
+  useEffect(() => {
+    if (!avatarFile) {
+      return setAvatarPreview(user?.avatarUrl || null);
+    }
+    const reader = new FileReader();
+    reader.onload = () => setAvatarPreview(reader.result as string);
+    reader.readAsDataURL(avatarFile);
+  }, [avatarFile, user]);
 
   return (
     <>
@@ -74,6 +91,47 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
               <form action={formAction} className="space-y-5">
                 <input type="hidden" name="id" value={user.id} />
 
+                {/* --- only when editing: avatar picker + preview --- */}
+                {user && (
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                      <FiImage className="text-gray-500" />
+                      <span>Avatar</span>
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        {avatarPreview ? (
+                          <Image
+                            src={avatarPreview}
+                            alt="avatar preview"
+                            width={64}
+                            height={64}
+                            className="object-cover w-full h-full"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            —
+                          </div>
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        name="image"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] ?? null;
+                          setAvatarFile(file);
+                        }}
+                      />
+                      {state.errors?.image && (
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                          {state.errors.image[0]}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Name */}
                 <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
@@ -91,27 +149,6 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
                   {state.errors?.name && (
                     <p className="mt-1 text-sm text-red-600 dark:text-red-400">
                       {state.errors.name[0]}
-                    </p>
-                  )}
-                </div>
-
-                {/* Image URL */}
-                <div className="space-y-1">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                    <FiImage className="text-gray-500" />
-                    <span>Profile Image URL</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      name="image"
-                      defaultValue={user.image || ""}
-                      className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2.5 px-4 pl-10 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
-                      placeholder="https://example.com/avatar.jpg"
-                    />
-                  </div>
-                  {state.errors?.image && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                      {state.errors.image[0]}
                     </p>
                   )}
                 </div>

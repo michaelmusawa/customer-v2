@@ -1,24 +1,22 @@
 // components/dashboard/SummarySection.tsx
 import React from "react";
 import { fetchSummaryStats } from "@/app/lib/dashboardActions";
-import {
-  FiFileText,
-  FiDollarSign,
-  FiClock,
-  FiAlertCircle,
-} from "react-icons/fi";
+import { FiFileText, FiAlertCircle, FiUsers } from "react-icons/fi";
+import MoneyIcon from "../icons/moneyIcon";
 
 export default async function SummarySection({
   startDate,
   endDate,
   station,
+  userId,
 }: {
   startDate: string;
   endDate: string;
   station: string;
+  userId?: number | undefined;
 }) {
-  const { totalRecords, totalValue, totalServices, errorRate } =
-    await fetchSummaryStats(startDate, endDate, station);
+  const { totalRecords, totalValue, totalClients, errorRate } =
+    await fetchSummaryStats(startDate, endDate, station, userId);
 
   const cards = [
     {
@@ -31,14 +29,14 @@ export default async function SummarySection({
     {
       label: "Total Value (KES)",
       value: `KES ${totalValue.toLocaleString()}`,
-      icon: <FiDollarSign className="text-xl" />,
+      icon: <MoneyIcon className="text-xl" />,
       color: "bg-green-100 text-green-600",
       darkColor: "dark:bg-green-900/30 dark:text-green-300",
     },
     {
-      label: "Avg. Time (min)",
-      value: `${totalServices.toFixed(1)}`,
-      icon: <FiClock className="text-xl" />,
+      label: "Clients Served",
+      value: `${totalClients}`,
+      icon: <FiUsers className="text-xl" />,
       color: "bg-amber-100 text-amber-600",
       darkColor: "dark:bg-amber-900/30 dark:text-amber-300",
     },

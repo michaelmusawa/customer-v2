@@ -52,7 +52,13 @@ export type RecordInput = z.infer<typeof RecordSchema>;
 export const UpdateSchema = z
   .object({
     name: z.string().min(1, "Name is required"),
-    image: z.string().url("Invalid URL").optional().or(z.literal("")),
+    image: z
+      .any()
+      .refine(
+        (v) => v === undefined || v instanceof File,
+        "Invalid file upload"
+      )
+      .optional(),
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")

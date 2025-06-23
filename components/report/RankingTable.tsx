@@ -58,7 +58,7 @@ export default async function RankingTable({
               </th>
               <th className="py-3 px-5 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 <span className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-2 py-1 rounded-md">
-                  Value
+                  Value (KES)
                 </span>
               </th>
             </tr>
@@ -97,7 +97,7 @@ export default async function RankingTable({
                   </span>
                 </td>
                 <td className="py-4 px-5 text-right font-bold text-green-600 dark:text-green-400">
-                  KES {item.value.toLocaleString()}
+                  {item.value.toLocaleString()}
                 </td>
               </tr>
             ))}

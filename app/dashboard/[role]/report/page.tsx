@@ -40,7 +40,13 @@ const Page = async (props: {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white">
               Service Report Dashboard
             </h1>
-            <ReportExportButton />
+            <ReportExportButton
+              station={station}
+              startDate={startDate}
+              endDate={endDate}
+              groupByShift={groupByShift}
+              rankBy={rankBy}
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-7 gap-4 items-end">

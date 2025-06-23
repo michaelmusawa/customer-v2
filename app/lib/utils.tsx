@@ -43,3 +43,39 @@ export const getSubordinateRole = (user: string): string => {
       return "unknown";
   }
 };
+
+export type NumericFieldType = "int" | "float2";
+
+/**
+ * Given an array of records and a map of which fields you want to total,
+ * returns an object whose keys are the same fields, and whose values are
+ * the summed (and correctly rounded) totals.
+ *
+ * @param data    an array of objects
+ * @param fields  an object mapping each numeric field name to either:
+ *                - `"int"`   → round to nearest integer
+ *                - `"float2"` → round to 2 decimal places
+ */
+export function computeTotals<T extends Record<string, any>>(
+  data: T[],
+  fields: Record<keyof T, NumericFieldType>
+): Record<keyof T, number> {
+  const totals = {} as Record<keyof T, number>;
+
+  for (const key of Object.keys(fields) as (keyof T)[]) {
+    // sum every item[key] coerced to a float
+    const rawSum = data.reduce<number>((sum, item) => {
+      const n = parseFloat(String(item[key]) || "0");
+      return sum + (isNaN(n) ? 0 : n);
+    }, 0);
+
+    // round according to your specification
+    if (fields[key] === "int") {
+      totals[key] = Math.round(rawSum);
+    } else {
+      totals[key] = parseFloat(rawSum.toFixed(2));
+    }
+  }
+
+  return totals;
+}

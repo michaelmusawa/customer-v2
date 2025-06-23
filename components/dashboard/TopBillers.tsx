@@ -1,22 +1,52 @@
 // components/dashboard/TopBillers.tsx
 import React from "react";
-import { fetchTopBillers } from "@/app/lib/dashboardActions";
+import {
+  fetchTopBillers,
+  fetchUserNameById,
+  TopPerformer,
+} from "@/app/lib/dashboardActions";
 
 export default async function TopBillers({
   startDate,
   endDate,
   station,
+  userId,
 }: {
   startDate: string;
   endDate: string;
   station: string;
+  userId?: number | undefined;
 }) {
-  const data = await fetchTopBillers(startDate, endDate, station);
+  // 1. Pull the “full” ranking (or at least top 100)
+  const fullList = await fetchTopBillers(startDate, endDate, station);
+
+  let displayList: TopPerformer[];
+
+  if (userId != null) {
+    // 2. Look up this user’s name
+    const myName = await fetchUserNameById(userId);
+
+    // 3. Find their position in the ranking
+    const idx = fullList.findIndex((row) => row.name === myName);
+
+    if (idx >= 0) {
+      // center that user ±2
+      const start = Math.max(0, idx - 2);
+      displayList = fullList.slice(start, start + 5);
+    } else {
+      // if not found (e.g. brand‐new user), fall back to top 5
+      displayList = fullList.slice(0, 5);
+    }
+  } else {
+    // no userId: just show global top 5
+    displayList = fullList.slice(0, 5);
+  }
   return (
     <div>
       <SimpleTable
-        headers={["Biller", "Count", "Value"]}
-        rows={data.map((b, i) => [
+        headers={["#", "Biller", "Count", "Value"]}
+        rows={displayList.map((b, i) => [
+          i + 1,
           b.name,
           b.count,
           `KES ${b.value.toLocaleString()}`,

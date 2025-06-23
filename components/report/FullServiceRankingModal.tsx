@@ -7,6 +7,7 @@ import type {
   ServiceRankingItem,
   ShiftServiceSection,
 } from "@/app/lib/reportActions";
+import { computeTotals } from "@/app/lib/utils";
 
 interface Props {
   items: ServiceRankingItem[] | ShiftServiceSection[];
@@ -24,18 +25,20 @@ export default function FullServiceRankingModal({
 
   // Render totals row
   function renderTotalsRow(data: ServiceRankingItem[]) {
-    const totalCount = data.reduce((sum, i) => sum + i.count, 0);
-    const totalClients = data.reduce((sum, i) => sum + i.clients, 0);
-    const totalValue = data.reduce((sum, i) => sum + i.value, 0);
+    const { count, clients, value } = computeTotals(data, {
+      count: "int",
+      clients: "int",
+      value: "float2",
+    });
 
     return (
       <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 font-semibold">
         <td colSpan={2} className="py-3 px-4 text-right">
           Totals
         </td>
-        <td className="py-3 px-4 text-right">{totalCount}</td>
-        <td className="py-3 px-4 text-right">{totalClients}</td>
-        <td className="py-3 px-4 text-right">{`KES ${totalValue.toLocaleString()}`}</td>
+        <td className="py-3 px-4 text-right">{count}</td>
+        <td className="py-3 px-4 text-right">{clients}</td>
+        <td className="py-3 px-4 text-right">{`${value.toLocaleString()}`}</td>
       </tr>
     );
   }

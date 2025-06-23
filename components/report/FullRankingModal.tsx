@@ -7,6 +7,7 @@ import type {
   RankingDataItem,
   ShiftRankingSection,
 } from "@/app/lib/reportActions";
+import { computeTotals } from "@/app/lib/utils";
 
 interface Props {
   items: RankingDataItem[] | ShiftRankingSection[];
@@ -24,18 +25,20 @@ export default function FullRankingModal({ items, rankBy, groupBy }: Props) {
 
   // Render a totals row for a flat list
   function renderTotalsRow(data: RankingDataItem[]) {
-    const totalCount = data.reduce((s, i) => s + i.count, 0);
-    const totalClients = data.reduce((s, i) => s + i.clients, 0);
-    const totalValue = data.reduce((s, i) => s + i.value, 0);
+    const { count, clients, value } = computeTotals(data, {
+      count: "int",
+      clients: "int",
+      value: "float2",
+    });
 
     return (
       <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 font-semibold">
         <td colSpan={2} className="py-3 px-4 text-right">
           Totals
         </td>
-        <td className="py-3 px-4 text-right">{totalCount}</td>
-        <td className="py-3 px-4 text-right">{totalClients}</td>
-        <td className="py-3 px-4 text-right">{`KES ${totalValue.toLocaleString()}`}</td>
+        <td className="py-3 px-4 text-right">{count}</td>
+        <td className="py-3 px-4 text-right">{clients}</td>
+        <td className="py-3 px-4 text-right">{`${value.toLocaleString()}`}</td>
       </tr>
     );
   }
@@ -94,7 +97,7 @@ export default function FullRankingModal({ items, rankBy, groupBy }: Props) {
                   </span>
                 </td>
                 <td className="py-4 px-5 text-right font-bold text-green-600 dark:text-green-400">
-                  KES {item.value.toLocaleString()}
+                  {item.value.toLocaleString()}
                 </td>
               </tr>
             ))}

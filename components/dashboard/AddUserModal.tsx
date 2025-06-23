@@ -16,6 +16,7 @@ import {
   FiEdit2,
   FiChevronDown,
 } from "react-icons/fi";
+import Image from "next/image";
 
 interface AddUserModalProps {
   role?: string;
@@ -182,6 +183,11 @@ export default function AddUserModal({
                         className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2.5 px-4 pl-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                         placeholder="user@example.com"
                       />
+                      {state.errors?.email && (
+                        <p className="text-red-600 text-sm mt-1">
+                          {state.errors.email[0]}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
