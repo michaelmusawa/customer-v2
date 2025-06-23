@@ -110,7 +110,7 @@ const DateRangeFilter = ({
         {(startDate || endDate) && (
           <button
             onClick={clearDates}
-            className="ml-1 flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-300 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 dark:focus:ring-primary-700"
+            className="ml-1 flex items-center justify-center rounded-lg text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-300 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 dark:focus:ring-primary-700"
             aria-label="Clear dates"
           >
             <FiX className="h-5 w-5" />

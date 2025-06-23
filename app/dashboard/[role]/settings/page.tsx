@@ -4,10 +4,14 @@ import AddGroupModal from "@/components/settings/AddGroupModal";
 import SettingList from "@/components/settings/SettingList";
 import { auth } from "@/auth";
 import { getUser } from "@/app/lib/loginActions";
+import { requireRoleOrRedirect } from "@/app/lib/authHelpers";
 
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
+  // Ensure the user is logged in and has the correct role
+  await requireRoleOrRedirect(["admin", "supervisor"]);
+
   const session = await auth();
   const email = session?.user?.email;
   const user = await getUser(email ?? "");

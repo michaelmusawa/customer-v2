@@ -13,6 +13,7 @@ import ServiceRankingTableSkeleton from "@/components/report/ServiceRankingTable
 import ServiceRankingTable from "@/components/report/ServiceRankingTable";
 import ShiftSummarySkeleton from "@/components/report/ShiftSummarySkeleton";
 import ReportExportButton from "@/components/report/ReportExportButton";
+import { requireRoleOrRedirect } from "@/app/lib/authHelpers";
 
 const Page = async (props: {
   searchParams?: Promise<{
@@ -23,6 +24,9 @@ const Page = async (props: {
     rankBy?: string;
   }>;
 }) => {
+  // Ensure the user is logged in and has the correct role
+  await requireRoleOrRedirect(["coordinator"]);
+
   const {
     station = "",
     startDate = "",

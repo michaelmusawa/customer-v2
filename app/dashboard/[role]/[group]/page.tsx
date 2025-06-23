@@ -1,4 +1,5 @@
 // app/dashboard/[role]/billers/page.tsx
+import { requireRoleOrRedirect } from "@/app/lib/authHelpers";
 import { getUser } from "@/app/lib/loginActions";
 import { fetchUsersPages } from "@/app/lib/supervisorsActions";
 import { getSubordinateRole } from "@/app/lib/utils";
@@ -22,6 +23,9 @@ const Page = async (props: {
   }>;
   params?: Promise<{ role?: string }>;
 }) => {
+  // Ensure the user is logged in and has the correct role
+  await requireRoleOrRedirect(["admin", "coordinator", "supervisor"]);
+
   let station;
   const searchParams = await props.searchParams;
   const params = await props.params;

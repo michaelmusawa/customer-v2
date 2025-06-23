@@ -1,6 +1,10 @@
 // app/notifications/page.tsx
+import { requireRoleOrRedirect } from "@/app/lib/authHelpers";
+import { getUser } from "@/app/lib/loginActions";
 import { fetchEditedRecordsPages } from "@/app/lib/recordsActions";
+import { auth } from "@/auth";
 import EditedRecordsTable from "@/components/records/EditedRecordsTable";
+import NotAuthorizedPage from "@/components/status-pages/NotAuthorizedPage";
 import DateRangeFilter from "@/components/ui/dateRangeFilter";
 import Pagination from "@/components/ui/pagination";
 import Search from "@/components/ui/search";
@@ -18,6 +22,9 @@ const Page = async (props: {
   }>;
   params?: Promise<{ role?: string }>;
 }) => {
+  // Ensure the user is logged in and has the correct role
+  await requireRoleOrRedirect(["biller", "supervisor"]);
+
   const searchParams = await props.searchParams;
   const params = await props.params;
   const role = params?.role || "";
