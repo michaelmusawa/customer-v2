@@ -2,9 +2,10 @@
 import React from "react";
 import { fetchFilteredUsers } from "@/app/lib/supervisorsActions";
 import AddUserModal from "../dashboard/AddUserModal";
-import { FiUser, FiEdit2, FiTrash2 } from "react-icons/fi";
+import { FiUser, FiEdit2, FiTrash2, FiUserCheck } from "react-icons/fi";
 import Image from "next/image";
 import ArchiveUserForm from "./ArchiveUserForm";
+import ActivateUserForm from "../users/ActivateUserForm";
 
 const UsersTable = async ({
   query,
@@ -12,6 +13,7 @@ const UsersTable = async ({
   endDate,
   currentPage,
   role,
+  showArchived = false,
 }: {
   query: string;
   startDate: string;
@@ -19,13 +21,15 @@ const UsersTable = async ({
   currentPage: number;
   role: string;
   group?: string;
+  showArchived?: boolean;
 }) => {
   const users = await fetchFilteredUsers(
     query,
     startDate,
     endDate,
     role,
-    currentPage
+    currentPage,
+    showArchived
   );
 
   return (
@@ -110,18 +114,31 @@ const UsersTable = async ({
                 </>
               )}
               <td className="px-6 py-4 whitespace-nowrap">
-                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                  Active
+                <span
+                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                    user.status === "archived"
+                      ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                      : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                  }`}
+                >
+                  {user.status === "archived" ? "Archived" : "Active"}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex justify-end space-x-2">
-                  <AddUserModal user={user} role={role}>
-                    <button className="p-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
-                      <FiEdit2 className="w-4 h-4" />
-                    </button>
-                  </AddUserModal>
-                  <ArchiveUserForm userId={user.id} />
+                  {user.status !== "archived" && (
+                    <AddUserModal user={user} role={role}>
+                      <button className="p-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
+                        <FiEdit2 className="w-4 h-4" />
+                      </button>
+                    </AddUserModal>
+                  )}
+
+                  {user.status === "archived" ? (
+                    <ActivateUserForm userId={user.id} />
+                  ) : (
+                    <ArchiveUserForm userId={user.id} />
+                  )}
                 </div>
               </td>
             </tr>

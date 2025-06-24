@@ -401,3 +401,55 @@ export async function archiveUser(
     return { state_error: "Could not archive user." };
   }
 }
+
+export async function activateUser(
+  prevState: UserActionState | undefined,
+  formData: FormData
+): Promise<UserActionState> {
+  // Parse and validate userId
+  const raw = formData.get("userId");
+  const userId = raw ? parseInt(raw.toString(), 10) : NaN;
+
+  if (isNaN(userId)) {
+    return {
+      state_error: "Invalid user identifier.",
+      errors: {},
+      message: null,
+    };
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE "User" SET status = NULL WHERE id = $1`,
+      [userId]
+    );
+
+    if (result.rowCount === 0) {
+      // No rows updated → probably invalid id
+      return {
+        state_error: "User not found or already active.",
+        errors: {},
+        message: null,
+      };
+    }
+
+    // Invalidate any cached pages that list users
+    revalidatePath("/dashboard");
+
+    return {
+      message: "User activated successfully.",
+      state_error: null,
+      errors: {},
+    };
+  } catch (err: any) {
+    console.error("activateUser error:", err);
+    return {
+      state_error:
+        err.code === "23503"
+          ? "Cannot activate this user due to referential integrity."
+          : "Failed to activate user. Please try again later.",
+      errors: {},
+      message: null,
+    };
+  }
+}

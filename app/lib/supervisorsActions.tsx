@@ -10,7 +10,8 @@ export async function fetchUsersPages(
   query: string,
   startDate: string,
   endDate: string,
-  role: string | null
+  role: string | null,
+  showArchived: boolean = false // Add this parameter
 ): Promise<number> {
   const ITEMS_PER_PAGE = 10;
   const likeParam = `%${query}%`;
@@ -25,12 +26,18 @@ export async function fetchUsersPages(
     WHERE (
       u.name   ILIKE $1 OR
       u.email  ILIKE $1 OR
-      u.status ILIKE $1 OR
       s.name   ILIKE $1 OR
       st.name  ILIKE $1 OR
       c.name   ILIKE $1
     )
   `;
+
+  // Archived filter
+  if (showArchived) {
+    countSql += ` AND u.status = 'archived'`;
+  } else {
+    countSql += ` AND (u.status IS NULL OR u.status = '')`;
+  }
 
   // Date filtering
   if (startDate && endDate) {
@@ -65,7 +72,8 @@ export async function fetchFilteredUsers(
   startDate: string,
   endDate: string,
   role: string | null,
-  currentPage: number
+  currentPage: number,
+  showArchived: boolean = false // Add this parameter
 ): Promise<User[]> {
   const ITEMS_PER_PAGE = 10;
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -91,12 +99,18 @@ export async function fetchFilteredUsers(
     WHERE (
       u.name   ILIKE $1 OR
       u.email  ILIKE $1 OR
-      u.status ILIKE $1 OR
       s.name   ILIKE $1 OR
       st.name  ILIKE $1 OR
       c.name   ILIKE $1
     )
   `;
+
+  // Archived filter
+  if (showArchived) {
+    sql += ` AND u.status = 'archived'`;
+  } else {
+    sql += ` AND (u.status IS NULL OR u.status = '')`;
+  }
 
   // Date filtering
   if (startDate && endDate) {

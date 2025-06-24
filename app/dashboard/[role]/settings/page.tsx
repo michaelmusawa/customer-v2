@@ -17,8 +17,17 @@ export default async function SettingsPage() {
   const user = await getUser(email ?? "");
 
   const allTypes = ["shifts", "counters", "stations"] as const;
+
   const listTypes: ("shifts" | "counters" | "stations")[] = allTypes.filter(
-    (t) => (t === "stations" ? user?.role === "admin" : true)
+    (t) => {
+      if (t === "stations") {
+        // only admins see stations
+        return user?.role === "admin";
+      } else {
+        // only non-admins see shifts and counters
+        return user?.role !== "admin";
+      }
+    }
   );
 
   return (

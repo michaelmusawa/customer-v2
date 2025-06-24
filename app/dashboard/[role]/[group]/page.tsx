@@ -10,6 +10,7 @@ import Pagination from "@/components/ui/pagination";
 import Search from "@/components/ui/search";
 import TableSkeleton from "@/components/ui/TableSkeleton";
 import UsersTable from "@/components/ui/usersTable";
+import ToggleShowArchived from "@/components/users/ToggleShowArchived";
 import React, { Suspense } from "react";
 
 const Page = async (props: {
@@ -20,6 +21,7 @@ const Page = async (props: {
     page?: string;
     deleted?: boolean;
     success?: boolean;
+    showArchived?: string; // Add this line to handle showArchived
   }>;
   params?: Promise<{ role?: string }>;
 }) => {
@@ -33,6 +35,7 @@ const Page = async (props: {
   const query = searchParams?.query || "";
   const startDate = searchParams?.startDate || "";
   const endDate = searchParams?.endDate || "";
+  const showArchived = searchParams?.showArchived === "true"; // Add this line
   const currentPage = Number(searchParams?.page) || 1;
   const role = getSubordinateRole(userRole);
   const totalPages = await fetchUsersPages(query, startDate, endDate, role);
@@ -63,6 +66,10 @@ const Page = async (props: {
             <div className="w-full md:w-auto">
               <AddUserModal role={role} station={station} />
             </div>
+            <div className="flex flex-wrap gap-3 w-full md:w-auto">
+              {/* ... existing components */}
+              <ToggleShowArchived /> {/* Add this component */}
+            </div>
 
             <div className="flex flex-wrap gap-3 w-full md:w-auto">
               <div className="flex-1 min-w-[200px]">
@@ -82,6 +89,7 @@ const Page = async (props: {
               endDate={endDate}
               currentPage={currentPage}
               role={role}
+              showArchived={showArchived}
             />
           </Suspense>
 
