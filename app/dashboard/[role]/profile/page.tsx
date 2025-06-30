@@ -87,9 +87,7 @@ export default async function ProfilePage() {
               />
 
               {/* Supervisor and above see station */}
-              {(role === "supervisor" ||
-                role === "admin" ||
-                role === "supersupervisor") && (
+              {(role === "supervisor" || role === "biller") && (
                 <InfoCard
                   title="Station"
                   value={user.station || "—"}
@@ -97,14 +95,9 @@ export default async function ProfilePage() {
                 />
               )}
 
-              {/* Biller-only */}
+              {/* Biller-only for shift and counter */}
               {role === "biller" && (
                 <>
-                  <InfoCard
-                    title="Station"
-                    value={user.station || "—"}
-                    icon="📍"
-                  />
                   <InfoCard title="Shift" value={user.shift || "—"} icon="⏰" />
                   <InfoCard
                     title="Counter"

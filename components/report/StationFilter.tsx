@@ -27,7 +27,9 @@ export default function StationFilter({ station }: StationFilterProps) {
   useEffect(() => {
     fetch("/api/settings/stations")
       .then((res) => res.json())
-      .then((data) => setStations(data.items.map((s: any) => s.name)));
+      .then((data) =>
+        setStations(data.items.map((s: { id: number; name: string }) => s.name))
+      );
   }, []);
 
   // Whenever `selected` changes—and only when it's _not_ forced via prop—

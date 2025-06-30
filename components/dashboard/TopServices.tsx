@@ -22,7 +22,7 @@ export default async function TopServices({
         rows={data.map((s, i) => [
           s.name,
           s.count,
-          `KES ${s.value.toLocaleString()}`,
+          `KES ${parseInt(s.value).toLocaleString()}`,
         ])}
       />
     </div>

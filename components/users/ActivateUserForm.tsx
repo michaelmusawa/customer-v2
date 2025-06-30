@@ -40,7 +40,7 @@ export default function ActivateUserForm({ userId }: { userId: number }) {
               </div>
             )}
 
-            <p className="mb-5 text-gray-700 dark:text-gray-300">
+            <p className="mb-5 text-center text-gray-700 dark:text-gray-300 text-wrap">
               Are you sure you want to activate this user? They will regain
               access to the system.
             </p>

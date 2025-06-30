@@ -8,7 +8,7 @@ import {
   initialUserActionState,
 } from "@/app/lib/definitions";
 import SubmitButton from "../ui/SubmitButton";
-import { FiTrash2 } from "react-icons/fi";
+import { FiTrash2, FiX } from "react-icons/fi";
 import { archiveUser } from "@/app/lib/usersAction";
 
 interface ArchiveUserFormProps {
@@ -18,7 +18,6 @@ interface ArchiveUserFormProps {
 export default function ArchiveUserForm({ userId }: ArchiveUserFormProps) {
   const [open, setOpen] = React.useState(false);
 
-  // useActionState gives us state, the formAction to pass to <form>, and isLoading
   const [state, formAction, isLoading] = useActionState<
     typeof archiveUser,
     ArchiveActionState
@@ -28,52 +27,67 @@ export default function ArchiveUserForm({ userId }: ArchiveUserFormProps) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="text-red-600 hover:text-red-900"
+        className="p-2 text-red-600 hover:text-red-900 dark:text-red-500 dark:hover:text-red-400 transition-colors"
+        aria-label="Archive user"
       >
-        <FiTrash2 />
+        <FiTrash2 className="w-4 h-4" />
       </button>
 
       {open && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-sm w-full">
-            <h3 className="text-lg font-semibold mb-4 dark:text-white">
-              Archive User?
-            </h3>
-            <p className="mb-4 text-gray-700 dark:text-gray-300">
-              Are you sure you want to archive this user? They will no longer be
-              able to log in.
-            </p>
-
-            {/* Render any errors */}
-            {state.state_error && (
-              <div className="mb-4 text-red-600 text-sm">
-                {state.state_error}
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-sm border border-gray-200 dark:border-gray-700 shadow-xl">
+            <div className="p-5">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <FiTrash2 className="text-red-500" />
+                  Archive User?
+                </h3>
+                <button
+                  onClick={() => setOpen(false)}
+                  className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  aria-label="Close"
+                >
+                  <FiX className="text-xl text-gray-500 dark:text-gray-400" />
+                </button>
               </div>
-            )}
 
-            {/* Render success message */}
-            {state.message && (
-              <div className="mb-4 text-green-600 text-sm">{state.message}</div>
-            )}
+              <p className="mb-5 text-center text-gray-700 dark:text-gray-300 text-wrap">
+                Are you sure you want to archive this user? They will no longer
+                be able to log in.
+              </p>
 
-            <form action={formAction} className="flex justify-end space-x-3">
-              {/* hidden input so server action can read userId */}
-              <input type="hidden" name="userId" value={userId} />
+              {/* Messages with proper wrapping */}
+              {state.state_error && (
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-sm break-words">
+                  {state.state_error}
+                </div>
+              )}
 
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                disabled={isLoading}
-                className="px-4 py-2 bg-gray-200 rounded"
-              >
-                Cancel
-              </button>
-              <SubmitButton
-                isPending={isLoading}
-                label="Archive"
-                className="px-4 py-2 bg-red-600 text-white rounded"
-              />
-            </form>
+              {state.message && (
+                <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg text-sm break-words">
+                  {state.message}
+                </div>
+              )}
+
+              <form action={formAction} className="flex flex-wrap gap-3">
+                <input type="hidden" name="userId" value={userId} />
+
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  disabled={isLoading}
+                  className="flex-1 min-w-[100px] px-4 py-2.5 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+
+                <SubmitButton
+                  isPending={isLoading}
+                  label="Archive"
+                  className="flex-1 min-w-[100px] px-4 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-lg"
+                />
+              </form>
+            </div>
           </div>
         </div>
       )}

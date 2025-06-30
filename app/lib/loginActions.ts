@@ -15,10 +15,17 @@ import { randomBytes } from "crypto";
 import nodemailer from "nodemailer";
 
 interface User {
+  id: number;
   email: string;
   password: string;
   role?: string;
   station?: string;
+  stationId?: number;
+  counter?: string;
+  counterId?: number;
+  shift: string;
+  shiftId: number;
+  image?: string;
 }
 
 export async function getUser(email: string): Promise<User | undefined> {
@@ -34,6 +41,7 @@ export async function getUser(email: string): Promise<User | undefined> {
        u."shiftId",
        u."counterId",
        u.image,
+       u."createdAt",
        st.name AS station,
        sh.name AS shift,
         c.name AS counter

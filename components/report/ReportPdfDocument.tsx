@@ -214,31 +214,9 @@ const styles = StyleSheet.create({
 });
 
 const formatCurrency = (n: number) => `${n.toLocaleString("en-US")}`;
-
-export interface ReportData {
-  startDate: string;
-  endDate: string;
-  station: string;
-  rankByValue: boolean;
-  groupByShift: boolean;
-  summary: DashboardSummary;
-  shiftSummary: ShiftSummaryItem[];
-  billerData: RankingDataItem[] | ShiftRankingSection[];
-  serviceData: ServiceRankingItem[] | ShiftServiceSection[];
-}
-
-// Helper to determine if data is grouped
-const isGrouped = (
-  data: any
-): data is ShiftRankingSection[] | ShiftServiceSection[] => {
-  return Array.isArray(data) && data.length > 0 && "shift" in data[0];
-};
-
-// Helper for safe number conversion
 const safeNumber = (value: any): number => {
   if (typeof value === "number") return value;
   if (typeof value === "string") {
-    // Remove currency symbols and commas
     const cleaned = value.replace(/[^\d.]/g, "");
     const num = parseFloat(cleaned);
     return isNaN(num) ? 0 : num;
@@ -246,46 +224,90 @@ const safeNumber = (value: any): number => {
   return 0;
 };
 
-export default function ReportPdfDocument(props: ReportData) {
-  const {
-    startDate,
-    endDate,
-    station,
-    rankByValue,
-    groupByShift,
-    summary,
-    shiftSummary,
-    billerData,
-    serviceData,
-  } = props;
+const EMPTY_SUMMARY: DashboardSummary = {
+  totalRecords: 0,
+  totalValue: 0,
+  totalServices: 0,
+  totalClients: 0,
+};
 
-  // Helper to render a table
+export interface ReportData {
+  startDate?: string;
+  endDate?: string;
+  station?: string;
+  rankByValue?: boolean;
+  groupByShift?: boolean;
+  summary?: DashboardSummary;
+  shiftSummary?: ShiftSummaryItem[];
+  billerData?: RankingDataItem[] | ShiftRankingSection[];
+  serviceData?: ServiceRankingItem[] | ShiftServiceSection[];
+}
+
+const isGrouped = (
+  data: any
+): data is ShiftRankingSection[] | ShiftServiceSection[] => {
+  return Array.isArray(data) && data.length > 0 && "shift" in data[0];
+};
+
+export default function ReportPdfDocument(raw: ReportData) {
+  const {
+    startDate = "",
+    endDate = "",
+    station = "",
+    rankByValue = false,
+    groupByShift = false,
+    summary = EMPTY_SUMMARY,
+    shiftSummary = [],
+    billerData = [],
+    serviceData = [],
+  } = raw;
+
+  const safeSummary: DashboardSummary = { ...EMPTY_SUMMARY, ...summary };
+
   const renderTable = (
     headers: string[],
     data: any[],
-    isGrouped: boolean,
+    grouped: boolean,
     isService = false
   ) => {
-    return (
-      <View style={styles.table}>
-        <View style={styles.tableHeader}>
-          {headers.map((header, idx) => (
-            <Text key={idx} style={styles.headerCell}>
-              {header}
+    if (!Array.isArray(data) || data.length === 0) {
+      return (
+        <View style={styles.table}>
+          <View style={styles.tableHeader}>
+            {headers.map((h, i) => (
+              <Text key={i} style={styles.headerCell}>
+                {h}
+              </Text>
+            ))}
+          </View>
+          <View style={styles.row}>
+            <Text style={[styles.cell, { flex: headers.length }]}>
+              No data available
             </Text>
-          ))}
+          </View>
         </View>
+      );
+    }
 
-        {isGrouped ? (
-          (data as (ShiftRankingSection | ShiftServiceSection)[]).map(
-            (group, groupIdx) => (
-              <View key={groupIdx}>
+    if (grouped) {
+      return (
+        <View style={styles.table}>
+          <View style={styles.tableHeader}>
+            {headers.map((h, i) => (
+              <Text key={i} style={styles.headerCell}>
+                {h}
+              </Text>
+            ))}
+          </View>
+          {(data as (ShiftRankingSection | ShiftServiceSection)[]).map(
+            (group, gi) => (
+              <View key={gi}>
                 <View style={styles.groupHeader}>
                   <Text style={styles.groupTitle}>Shift: {group.shift}</Text>
                 </View>
-                {group.items.map((item, rowIdx) => (
-                  <View style={styles.row} key={rowIdx}>
-                    <Text style={styles.cell}>{rowIdx + 1}</Text>
+                {group.items.map((item, ri) => (
+                  <View style={styles.row} key={ri}>
+                    <Text style={styles.cell}>{ri + 1}</Text>
                     <Text style={styles.cell}>
                       {isService
                         ? (item as ServiceRankingItem).service
@@ -323,42 +345,49 @@ export default function ReportPdfDocument(props: ReportData) {
                 </View>
               </View>
             )
-          )
-        ) : (
-          <>
-            {(data as (RankingDataItem | ServiceRankingItem)[]).map(
-              (item, rowIdx) => (
-                <View style={styles.row} key={rowIdx}>
-                  <Text style={styles.cell}>{rowIdx + 1}</Text>
-                  <Text style={styles.cell}>
-                    {isService
-                      ? (item as ServiceRankingItem).service
-                      : (item as RankingDataItem).key}
-                  </Text>
-                  <Text style={styles.cell}>{item.count}</Text>
-                  <Text style={styles.cell}>{item.clients}</Text>
-                  <Text style={styles.cell}>
-                    {formatCurrency(safeNumber(item.value))}
-                  </Text>
-                </View>
-              )
+          )}
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.table}>
+        <View style={styles.tableHeader}>
+          {headers.map((h, i) => (
+            <Text key={i} style={styles.headerCell}>
+              {h}
+            </Text>
+          ))}
+        </View>
+        {(data as (RankingDataItem | ServiceRankingItem)[]).map((item, ri) => (
+          <View style={styles.row} key={ri}>
+            <Text style={styles.cell}>{ri + 1}</Text>
+            <Text style={styles.cell}>
+              {isService
+                ? (item as ServiceRankingItem).service
+                : (item as RankingDataItem).key}
+            </Text>
+            <Text style={styles.cell}>{item.count}</Text>
+            <Text style={styles.cell}>{item.clients}</Text>
+            <Text style={styles.cell}>
+              {formatCurrency(safeNumber(item.value))}
+            </Text>
+          </View>
+        ))}
+        <View style={styles.totalsRow}>
+          <Text style={[styles.totalsCell, { flex: 2 }]}>TOTALS</Text>
+          <Text style={styles.totalsCell}>
+            {data.reduce((sum, i) => sum + safeNumber(i.count), 0)}
+          </Text>
+          <Text style={styles.totalsCell}>
+            {data.reduce((sum, i) => sum + safeNumber(i.clients), 0)}
+          </Text>
+          <Text style={styles.totalsCell}>
+            {formatCurrency(
+              data.reduce((sum, i) => sum + safeNumber(i.value), 0)
             )}
-            <View style={styles.totalsRow}>
-              <Text style={[styles.totalsCell, { flex: 2 }]}>TOTALS</Text>
-              <Text style={styles.totalsCell}>
-                {data.reduce((sum, i) => sum + safeNumber(i.count), 0)}
-              </Text>
-              <Text style={styles.totalsCell}>
-                {data.reduce((sum, i) => sum + safeNumber(i.clients), 0)}
-              </Text>
-              <Text style={styles.totalsCell}>
-                {formatCurrency(
-                  data.reduce((sum, i) => sum + safeNumber(i.value), 0)
-                )}
-              </Text>
-            </View>
-          </>
-        )}
+          </Text>
+        </View>
       </View>
     );
   };
@@ -368,14 +397,10 @@ export default function ReportPdfDocument(props: ReportData) {
       <Page size="A4" orientation="landscape" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
-          <Image
-            src="/images/county.png"
-            style={styles.logo}
-            alt="County Logo"
-          />
+          <Image src="/images/county.png" style={styles.logo} alt="" />
           <Text style={styles.title}>SERVICE AGENT PERFORMANCE REPORT</Text>
           <Text style={styles.subtitle}>
-            Report Period: {startDate} to {endDate}
+            Report Period: {startDate || "—"} to {endDate || "—"}
           </Text>
           <Text style={styles.filters}>
             {[
@@ -388,24 +413,17 @@ export default function ReportPdfDocument(props: ReportData) {
 
         {/* Summary Cards */}
         <View style={styles.cardContainer}>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Total Records</Text>
-            <Text style={styles.cardValue}>{summary.totalRecords}</Text>
-          </View>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Total Value</Text>
-            <Text style={styles.cardValue}>
-              {formatCurrency(safeNumber(summary.totalValue))}
-            </Text>
-          </View>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Services Used</Text>
-            <Text style={styles.cardValue}>{summary.totalServices}</Text>
-          </View>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Clients Served</Text>
-            <Text style={styles.cardValue}>{summary.totalClients}</Text>
-          </View>
+          {[
+            ["Total Records", safeSummary.totalRecords],
+            ["Total Value", formatCurrency(safeNumber(safeSummary.totalValue))],
+            ["Services Used", safeSummary.totalServices],
+            ["Clients Served", safeSummary.totalClients],
+          ].map(([title, value], idx) => (
+            <View key={idx} style={styles.card}>
+              <Text style={styles.cardTitle}>{title}</Text>
+              <Text style={styles.cardValue}>{value}</Text>
+            </View>
+          ))}
         </View>
 
         {/* Biller Ranking */}
@@ -415,7 +433,7 @@ export default function ReportPdfDocument(props: ReportData) {
           </View>
           {renderTable(
             ["Rank", "Biller", "Count", "Clients", "Value (KES)"],
-            billerData,
+            billerData as any[],
             isGrouped(billerData),
             false
           )}
@@ -428,7 +446,7 @@ export default function ReportPdfDocument(props: ReportData) {
           </View>
           {renderTable(
             ["Rank", "Service", "Count", "Clients", "Value (KES)"],
-            serviceData,
+            serviceData as any[],
             isGrouped(serviceData),
             true
           )}
@@ -439,39 +457,44 @@ export default function ReportPdfDocument(props: ReportData) {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>SHIFT SUMMARY</Text>
           </View>
-          <View style={styles.table}>
-            <View style={styles.tableHeader}>
-              <Text style={styles.headerCell}>Shift</Text>
-              <Text style={styles.headerCell}>Transactions</Text>
-              <Text style={styles.headerCell}>Clients</Text>
-              <Text style={styles.headerCell}>Value</Text>
-            </View>
-            {shiftSummary.map((sh, idx) => (
-              <View
-                style={[
-                  styles.row,
-                  idx === shiftSummary.length - 1 && { borderBottomWidth: 0 },
-                ]}
-                key={idx}
-              >
-                <Text style={styles.cell}>{sh.shift}</Text>
-                <Text style={styles.cell}>{sh.count}</Text>
-                <Text style={styles.cell}>{sh.clients}</Text>
-                <Text style={styles.cell}>
-                  {formatCurrency(safeNumber(sh.value))}
-                </Text>
+          {shiftSummary.length > 0 ? (
+            <View style={styles.table}>
+              <View style={styles.tableHeader}>
+                {["Shift", "Transactions", "Clients", "Value"].map((h, i) => (
+                  <Text key={i} style={styles.headerCell}>
+                    {h}
+                  </Text>
+                ))}
               </View>
-            ))}
-          </View>
+              {shiftSummary.map((sh, idx) => (
+                <View
+                  key={idx}
+                  style={[
+                    styles.row,
+                    idx === shiftSummary.length - 1 && { borderBottomWidth: 0 },
+                  ]}
+                >
+                  <Text style={styles.cell}>{sh.shift}</Text>
+                  <Text style={styles.cell}>{sh.count}</Text>
+                  <Text style={styles.cell}>{sh.clients}</Text>
+                  <Text style={styles.cell}>
+                    {formatCurrency(safeNumber(sh.value))}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={{ textAlign: "center", color: COLORS.secondary }}>
+              No shift summary data
+            </Text>
+          )}
         </View>
 
-        {/* Footer */}
+        {/* Footer & Page Numbers */}
         <View style={styles.footer}>
           <Text>Generated by Service Agent Dashboard</Text>
           <Text>{new Date().toLocaleString()}</Text>
         </View>
-
-        {/* Page Numbers */}
         <Text
           style={styles.pageNumber}
           render={({ pageNumber, totalPages }) =>

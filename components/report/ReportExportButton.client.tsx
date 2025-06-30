@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import ReportPdfDocument, { ReportData } from "./ReportPdfDocument";
 
@@ -13,10 +13,22 @@ export default function ReportExportButtonClient({ docProps }: Props) {
     ?.toISOString()
     ?.slice(0, 10)}.pdf`;
 
-  return (
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const count = useRef(0);
+  useEffect(() => {
+    count.current++;
+  }, [docProps]);
+
+  return isClient ? (
     <PDFDownloadLink
       document={<ReportPdfDocument {...docProps} />}
       fileName={filename}
+      key={count.current}
     >
       {({ loading }) => (
         <button
@@ -73,5 +85,5 @@ export default function ReportExportButtonClient({ docProps }: Props) {
         </button>
       )}
     </PDFDownloadLink>
-  );
+  ) : null;
 }

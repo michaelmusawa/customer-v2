@@ -2,7 +2,7 @@
 import React from "react";
 import { fetchFilteredUsers } from "@/app/lib/supervisorsActions";
 import AddUserModal from "../dashboard/AddUserModal";
-import { FiUser, FiEdit2, FiTrash2, FiUserCheck } from "react-icons/fi";
+import { FiUser, FiEdit2 } from "react-icons/fi";
 import Image from "next/image";
 import ArchiveUserForm from "./ArchiveUserForm";
 import ActivateUserForm from "../users/ActivateUserForm";
