@@ -2,10 +2,12 @@
 import React from "react";
 import { fetchFilteredUsers } from "@/app/lib/supervisorsActions";
 import AddUserModal from "../dashboard/AddUserModal";
-import { FiUser, FiEdit2 } from "react-icons/fi";
+import { FiUser } from "react-icons/fi";
 import Image from "next/image";
 import ArchiveUserForm from "./ArchiveUserForm";
 import ActivateUserForm from "../users/ActivateUserForm";
+
+const PAGE_SIZE = 10;
 
 const UsersTable = async ({
   query,
@@ -31,6 +33,8 @@ const UsersTable = async ({
     currentPage,
     showArchived
   );
+
+  const offset = (currentPage - 1) * PAGE_SIZE;
 
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
@@ -71,7 +75,7 @@ const UsersTable = async ({
               className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30"
             >
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                {index + 1}
+                {offset + index + 1}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center">
@@ -80,7 +84,7 @@ const UsersTable = async ({
                       <Image
                         className="h-10 w-10 rounded-full object-cover border-2 border-indigo-500/30"
                         src={user.image}
-                        alt={user.name}
+                        alt={user.name ?? "User Image"}
                         width={200}
                         height={200}
                       />
@@ -127,11 +131,7 @@ const UsersTable = async ({
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex justify-end space-x-2">
                   {user.status !== "archived" && (
-                    <AddUserModal user={user} role={role}>
-                      <button className="p-2 text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
-                        <FiEdit2 className="w-4 h-4" />
-                      </button>
-                    </AddUserModal>
+                    <AddUserModal user={user} role={role} />
                   )}
 
                   {user.status === "archived" ? (
@@ -155,7 +155,8 @@ const UsersTable = async ({
             No users found
           </h3>
           <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-            Try adjusting your search or filter to find what you're looking for.
+            Try adjusting your search or filter to find what you&apos;re looking
+            for.
           </p>
         </div>
       )}

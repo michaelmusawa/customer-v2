@@ -82,7 +82,7 @@ export default async function ProfilePage() {
               {/* Everyone */}
               <InfoCard
                 title="Joined On"
-                value={new Date(user.createdAt).toLocaleDateString()}
+                value={new Date(user.createdAt ?? "").toLocaleDateString()}
                 icon="📅"
               />
 

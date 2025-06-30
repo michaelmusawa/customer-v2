@@ -1,6 +1,7 @@
 // components/dashboard/ServiceBreakdownComponent.tsx
 "use client";
 
+import { Breakdown } from "@/app/lib/dashboardActions";
 import React from "react";
 import {
   Cell,
@@ -11,7 +12,13 @@ import {
   Legend,
 } from "recharts";
 
-const ServiceBreakdownComponent = ({ data, colors }: any) => {
+const ServiceBreakdownComponent = ({
+  data,
+  colors,
+}: {
+  data: Breakdown[];
+  colors: string[];
+}) => {
   return (
     <div className="h-72">
       <ResponsiveContainer width="100%" height="100%">
@@ -46,7 +53,7 @@ const ServiceBreakdownComponent = ({ data, colors }: any) => {
             layout="vertical"
             verticalAlign="middle"
             align="right"
-            formatter={(value, entry, index) => (
+            formatter={(value) => (
               <span className="text-gray-700 dark:text-gray-300 text-sm">
                 {value}
               </span>

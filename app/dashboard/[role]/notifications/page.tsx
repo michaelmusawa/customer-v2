@@ -1,10 +1,7 @@
 // app/notifications/page.tsx
 import { requireRoleOrRedirect } from "@/app/lib/authHelpers";
-import { getUser } from "@/app/lib/loginActions";
 import { fetchEditedRecordsPages } from "@/app/lib/recordsActions";
-import { auth } from "@/auth";
 import EditedRecordsTable from "@/components/records/EditedRecordsTable";
-import NotAuthorizedPage from "@/components/status-pages/NotAuthorizedPage";
 import DateRangeFilter from "@/components/ui/dateRangeFilter";
 import Pagination from "@/components/ui/pagination";
 import Search from "@/components/ui/search";

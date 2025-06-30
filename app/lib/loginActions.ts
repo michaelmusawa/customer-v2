@@ -14,7 +14,7 @@ import { ForgotPasswordSchema, ResetPasswordSchema } from "./schemas";
 import { randomBytes } from "crypto";
 import nodemailer from "nodemailer";
 
-interface User {
+export interface User {
   id: number;
   email: string;
   password: string;
@@ -26,6 +26,8 @@ interface User {
   shift: string;
   shiftId: number;
   image?: string;
+  name?: string;
+  createdAt?: Date;
 }
 
 export async function getUser(email: string): Promise<User | undefined> {

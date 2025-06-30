@@ -19,7 +19,7 @@ export default async function TopServices({
     <div>
       <SimpleTable
         headers={["Service", "Count", "Value"]}
-        rows={data.map((s, i) => [
+        rows={data.map((s) => [
           s.name,
           s.count,
           `KES ${parseInt(s.value).toLocaleString()}`,

@@ -1,6 +1,7 @@
 // components/dashboard/ShiftDistributionComponent.tsx
 "use client";
 
+import { ShiftBreakdown } from "@/app/lib/dashboardActions";
 import React from "react";
 import {
   Bar,
@@ -12,7 +13,7 @@ import {
   CartesianGrid,
 } from "recharts";
 
-const ShiftDistributionComponent = ({ data }: { data: any }) => {
+const ShiftDistributionComponent = ({ data }: { data: ShiftBreakdown[] }) => {
   return (
     <div className="h-64">
       <ResponsiveContainer width="100%" height="100%">

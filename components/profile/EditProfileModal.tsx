@@ -7,6 +7,7 @@ import { updateProfile } from "@/app/lib/usersAction";
 import SubmitButton from "../ui/SubmitButton";
 import Image from "next/image";
 import { FiUser, FiImage, FiLock, FiX, FiEye, FiEyeOff } from "react-icons/fi";
+import { User } from "@/app/lib/loginActions";
 
 interface EditProfileModalProps {
   user: User;
@@ -31,13 +32,13 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
   // Only for edit: avatar file + preview URL
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    user?.avatarUrl || null
+    user?.image || null
   );
 
   // When an avatarFile is selected, generate a data-URL preview
   useEffect(() => {
     if (!avatarFile) {
-      return setAvatarPreview(user?.avatarUrl || null);
+      return setAvatarPreview(user?.image || null);
     }
     const reader = new FileReader();
     reader.onload = () => setAvatarPreview(reader.result as string);
@@ -104,8 +105,8 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
                           <Image
                             src={avatarPreview}
                             alt="avatar preview"
-                            width={64}
-                            height={64}
+                            width={200}
+                            height={200}
                             className="object-cover w-full h-full"
                           />
                         ) : (
@@ -141,7 +142,7 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
                   <div className="relative">
                     <input
                       name="name"
-                      defaultValue={user.name}
+                      defaultValue={user.name ?? ""}
                       className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2.5 px-4 pl-10 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
                       placeholder="John Doe"
                     />

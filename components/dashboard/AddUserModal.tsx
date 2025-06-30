@@ -16,7 +16,6 @@ import {
   FiEdit2,
   FiChevronDown,
 } from "react-icons/fi";
-import Image from "next/image";
 
 interface AddUserModalProps {
   role?: string;
@@ -50,11 +49,15 @@ export default function AddUserModal({
   useEffect(() => {
     fetch("/api/settings/stations")
       .then((res) => res.json())
-      .then((data) => setStations(data.items.map((s: any) => s.name)));
+      .then((data) =>
+        setStations(data.items.map((s: { id: number; name: string }) => s.name))
+      );
 
     fetch("/api/settings/shifts")
       .then((res) => res.json())
-      .then((data) => setShifts(data.items.map((s: any) => s.name)));
+      .then((data) =>
+        setShifts(data.items.map((s: { id: number; name: string }) => s.name))
+      );
   }, []);
 
   useEffect(() => {

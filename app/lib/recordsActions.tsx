@@ -198,6 +198,7 @@ interface RecordRow {
   counter: string;
   shift: string;
   createdAt: Date;
+  billerName: string;
 }
 
 /** Edited records */
@@ -308,6 +309,7 @@ export async function fetchFilteredEditedRecords(
       r.value,
       c.name   AS counter,
       s.name   AS shift,
+      u.name AS "billerName",
       r."createdAt"
     FROM "EditedRecord" r
     JOIN "User" u ON r."billerId" = u.id

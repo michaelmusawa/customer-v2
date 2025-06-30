@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import "./globals.css";
 import { poppins } from "@/public/fonts/fonts";
+import AutoLogoutClient from "@/components/ui/AutoLogout";
 
 export const metadata: Metadata = {
   title: "Customer service app",
@@ -15,7 +16,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${poppins.variable} antialiased`}>{children}</body>
+      <body className={`${poppins.variable} antialiased`}>
+        {" "}
+        <AutoLogoutClient />
+        {children}
+      </body>
     </html>
   );
 }

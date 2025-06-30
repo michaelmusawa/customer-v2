@@ -273,7 +273,7 @@ export async function fetchUserNameById(
   return rows[0]?.name ?? null;
 }
 
-export type TopService = { name: string; count: number; value: number };
+export type TopService = { name: string; count: number; value: string };
 
 export async function fetchTopServices(
   startDate: string,

@@ -2,7 +2,9 @@
 import { fetchFilteredRecords } from "@/app/lib/recordsActions";
 import React from "react";
 import AddRecordModal from "./AddRecordModal";
-import { FiClipboard, FiEdit2, FiEye, FiTrash2 } from "react-icons/fi";
+import { FiClipboard, FiEye } from "react-icons/fi";
+
+const PAGE_SIZE = 10;
 
 const RecordsTable = async ({
   query,
@@ -16,7 +18,6 @@ const RecordsTable = async ({
   endDate: string;
   currentPage: number;
   role: string;
-  group?: string;
 }) => {
   const records = await fetchFilteredRecords(
     query,
@@ -26,7 +27,9 @@ const RecordsTable = async ({
     currentPage
   );
 
-  const formatDate = (dateString: string) => {
+  const offset = (currentPage - 1) * PAGE_SIZE;
+
+  const formatDate = (dateString: Date) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
       year: "numeric",
@@ -72,7 +75,7 @@ const RecordsTable = async ({
               className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30"
             >
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                {i + 1}
+                {offset + i + 1}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 dark:text-blue-400">
                 {r.ticket}
@@ -104,11 +107,7 @@ const RecordsTable = async ({
                   <button className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                     <FiEye className="w-4 h-4" />
                   </button>
-                  <AddRecordModal record={r}>
-                    <button className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                      <FiEdit2 className="w-4 h-4" />
-                    </button>
-                  </AddRecordModal>
+                  <AddRecordModal record={r} />
                 </div>
               </td>
             </tr>
@@ -125,7 +124,8 @@ const RecordsTable = async ({
             No records found
           </h3>
           <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-            Try adjusting your search or filter to find what you're looking for.
+            Try adjusting your search or filter to find what you&apos;re looking
+            for.
           </p>
         </div>
       )}

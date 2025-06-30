@@ -2,7 +2,9 @@
 import { fetchFilteredEditedRecords } from "@/app/lib/recordsActions";
 import React from "react";
 import EditRecordModal from "./EditRecordModal";
-import { FiEdit, FiClock, FiCheckCircle, FiXCircle } from "react-icons/fi";
+import { FiEdit, FiClock, FiCheckCircle } from "react-icons/fi";
+
+const PAGE_SIZE = 10;
 
 const EditedRecordsTable = async ({
   query,
@@ -26,7 +28,7 @@ const EditedRecordsTable = async ({
     currentPage
   );
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: Date) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
       month: "short",
@@ -36,11 +38,16 @@ const EditedRecordsTable = async ({
     });
   };
 
+  const offset = (currentPage - 1) * PAGE_SIZE;
+
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
         <thead className="bg-gray-50 dark:bg-gray-700/50">
           <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              #
+            </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
               Ticket
             </th>
@@ -67,6 +74,9 @@ const EditedRecordsTable = async ({
               key={r.id}
               className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30"
             >
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                {offset + i + 1}
+              </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 dark:text-blue-400">
                 {r.ticket}
               </td>
@@ -84,12 +94,14 @@ const EditedRecordsTable = async ({
                     <FiEdit className="w-4 h-4" />
                   </div>
                   <div className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-                    {r.changedFields?.length || 0} changes
+                    {/* to be revisited */}
+                    {/* {r.changedFields?.length || 0} changes */}
+                    {0} changes
                   </div>
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                {role === "biller" ? "me" : r.requesterName || "Unknown"}
+                {role === "biller" ? "me" : r.billerName || "Unknown"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                 <div className="flex items-center">
