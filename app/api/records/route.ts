@@ -5,13 +5,28 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 // 1. Schema for external POST payload (no `token` here)
-const ExternalRecordSchema = z
-  .object({
+export const ExternalRecordSchema = z.preprocess(
+  (raw) => {
+    // Only objects can have subservice keys
+    if (raw !== null && typeof raw === "object") {
+      const obj = raw as Record<string, unknown>;
+
+      // If legacy `subservice` exists but no `subService` yet, copy it over
+      if ("subservice" in obj && !("subService" in obj)) {
+        obj.subService = obj.subservice;
+      }
+
+      return obj;
+    }
+
+    return raw;
+  },
+  z.object({
     ticket: z.string().nonempty(),
     recordType: z.string().optional(),
     name: z.string().nonempty(),
     service: z.string().nonempty(),
-    subService: z.union([z.string().optional(), z.undefined()]),
+    subService: z.string().optional(),
     recordNumber: z.string().optional(),
     value: z.preprocess(
       (val) =>
@@ -19,13 +34,7 @@ const ExternalRecordSchema = z
       z.number().int().nonnegative()
     ),
   })
-  .refine((data) => {
-    // normalize lowercase “subservice” to “subService”
-    if ((data as any).subservice && !data.subService) {
-      (data as any).subService = (data as any).subservice;
-    }
-    return true;
-  });
+);
 
 type ExternalRecord = z.infer<typeof ExternalRecordSchema>;
 
@@ -42,7 +51,7 @@ function withCors(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers });
 }
 
-export async function OPTIONS(req: NextRequest) {
+export async function OPTIONS() {
   return withCors(null, 204);
 }
 

@@ -12,10 +12,10 @@ import { ReportData } from "./ReportPdfDocument";
 import ReportExportButtonClient from "./ReportExportButton.client";
 
 interface props {
-  startDate?: string | undefined;
+  startDate?: string;
   endDate?: string;
   station?: string;
-  rankBy?: boolean;
+  rankBy?: string;
   groupByShift?: boolean;
 }
 
@@ -31,7 +31,13 @@ const ReportExportButton = async ({
     fetchSummaryStats(startDate, endDate, station),
     fetchShiftSummaryData(startDate, endDate, station),
     fetchRankingData(startDate, endDate, station, rankBy, groupByShift),
-    fetchServiceRankingData(startDate, endDate, station, rankBy, groupByShift),
+    fetchServiceRankingData(
+      startDate ?? "",
+      endDate ?? "",
+      station ?? "",
+      rankBy,
+      groupByShift
+    ),
   ]);
 
   // 2) prepare props

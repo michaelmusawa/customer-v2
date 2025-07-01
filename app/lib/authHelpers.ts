@@ -35,7 +35,7 @@ export async function requireRoleOrRedirect(
   }
 
   // 3) enforce role
-  if (!allowedRoles.includes(user.role)) {
+  if (!allowedRoles.includes(user.role ?? "")) {
     redirect(redirectToNoAccess);
   }
 

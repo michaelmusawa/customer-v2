@@ -56,13 +56,13 @@ export type NumericFieldType = "int" | "float2";
  *                - `"int"`   → round to nearest integer
  *                - `"float2"` → round to 2 decimal places
  */
-export function computeTotals<T extends Record<string, any>>(
+export function computeTotals<T extends object, K extends keyof T>(
   data: T[],
-  fields: Record<keyof T, NumericFieldType>
-): Record<keyof T, number> {
-  const totals = {} as Record<keyof T, number>;
+  fields: Record<K, NumericFieldType>
+): Record<K, number> {
+  const totals = {} as Record<K, number>;
 
-  for (const key of Object.keys(fields) as (keyof T)[]) {
+  for (const key of Object.keys(fields) as K[]) {
     // sum every item[key] coerced to a float
     const rawSum = data.reduce<number>((sum, item) => {
       const n = parseFloat(String(item[key]) || "0");
@@ -70,12 +70,26 @@ export function computeTotals<T extends Record<string, any>>(
     }, 0);
 
     // round according to your specification
-    if (fields[key] === "int") {
-      totals[key] = Math.round(rawSum);
-    } else {
-      totals[key] = parseFloat(rawSum.toFixed(2));
-    }
+    totals[key] =
+      fields[key] === "int"
+        ? Math.round(rawSum)
+        : parseFloat(rawSum.toFixed(2));
   }
 
   return totals;
+}
+
+// 1) Define the interface
+interface DBError {
+  code: string;
+}
+
+// 2) Narrow from unknown → DBError
+export function isDBError(err: unknown): err is DBError {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    typeof (err as DBError).code === "string"
+  );
 }

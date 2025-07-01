@@ -13,7 +13,7 @@ interface RankingTableProps {
   endDate: string;
   station: string;
   rankBy: string;
-  groupBy: boolean;
+  groupBy?: boolean;
 }
 
 export default async function RankingTable({
@@ -134,11 +134,7 @@ export default async function RankingTable({
         : renderTable(allData as RankingDataItem[])}
 
       <div className="mt-4 text-right">
-        <FullRankingModal
-          items={allData as any}
-          rankBy={rankBy}
-          groupBy={groupBy}
-        />
+        <FullRankingModal items={allData} rankBy={rankBy} groupBy={groupBy} />
       </div>
     </div>
   );

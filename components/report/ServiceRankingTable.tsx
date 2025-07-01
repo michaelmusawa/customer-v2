@@ -13,7 +13,7 @@ interface ServiceRankingTableProps {
   endDate: string;
   station: string;
   rankBy: string;
-  groupBy: boolean;
+  groupBy?: boolean;
 }
 
 export default async function ServiceRankingTable({
@@ -174,7 +174,7 @@ export default async function ServiceRankingTable({
 
         <div className="mt-4 text-right">
           <FullServiceRankingModal
-            items={allData as any}
+            items={allData}
             rankBy={rankBy}
             groupByShiftFlag={groupBy}
           />

@@ -11,11 +11,11 @@ import { computeTotals } from "@/app/lib/utils";
 
 interface Props {
   items: RankingDataItem[] | ShiftRankingSection[];
-  rankBy: boolean;
-  groupBy: string;
+  rankBy: string;
+  groupBy?: boolean;
 }
 
-export default function FullRankingModal({ items, rankBy, groupBy }: Props) {
+export default function FullRankingModal({ items, groupBy }: Props) {
   const [open, setOpen] = useState(false);
 
   // Determine if we're in "by shift" mode
@@ -127,9 +127,7 @@ export default function FullRankingModal({ items, rankBy, groupBy }: Props) {
                   Full Biller Ranking
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {groupBy === "shift"
-                    ? "Grouped by shift"
-                    : "Overall performance"}
+                  {groupBy ? "Grouped by shift" : "Overall performance"}
                 </p>
               </div>
               <button

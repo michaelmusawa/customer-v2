@@ -14,6 +14,7 @@ import {
 import type { SettingActionState } from "./definitions";
 import { auth } from "@/auth";
 import { getUser } from "./loginActions";
+import { isDBError } from "./utils";
 
 /**
  * Handles creation of a new setting entry.
@@ -117,12 +118,15 @@ export async function addSetting(
     // revalidate the settings page
     revalidatePath("/settings");
     return { message: "Added successfully!" };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("addSetting error:", err);
-    if (err.code === "23505") {
-      return { state_error: "That entry already exists." };
-    }
-    return { state_error: "Unexpected error. Please try again." };
+
+    const state_error =
+      isDBError(err) && err.code === "23505"
+        ? "That entry already exists."
+        : "Unexpected error. Please try again.";
+
+    return { state_error };
   }
 }
 
@@ -136,7 +140,7 @@ export async function getSettings(
   type: "services" | "stations" | "shifts" | "counters"
 ): Promise<{ id: number; name: string }[]> {
   let sql: string;
-  let params: any[] = [];
+  let params: string[] = [];
 
   // get users station
 
@@ -325,12 +329,15 @@ export async function updateSetting(
     ]);
     revalidatePath("/settings");
     return { message: "Updated successfully!" };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("updateSetting error:", err);
-    if (err.code === "23505") {
-      return { state_error: "That name already exists." };
-    }
-    return { state_error: "Unexpected error. Please try again." };
+
+    const state_error =
+      isDBError(err) && err.code === "23505"
+        ? "That name already exists."
+        : "Unexpected error. Please try again.";
+
+    return { state_error };
   }
 }
 
@@ -356,19 +363,19 @@ export async function deleteSetting(
         `SELECT 1 FROM "User" WHERE "stationId" = $1 LIMIT 1`,
         [id]
       );
-      inUse = r.rowCount > 0;
+      inUse = r.rowCount !== null && r.rowCount > 0;
     } else if (type === "shifts") {
       const r = await pool.query(
         `SELECT 1 FROM counters WHERE "shiftId" = $1 LIMIT 1`,
         [id]
       );
-      inUse = r.rowCount > 0;
+      inUse = r.rowCount !== null && r.rowCount > 0;
     } else if (type === "counters") {
       const r = await pool.query(
         `SELECT 1 FROM "User" WHERE "counterId" = $1 LIMIT 1`,
         [id]
       );
-      inUse = r.rowCount > 0;
+      inUse = (r.rowCount ?? 0) > 0;
     } else if (type === "services") {
       // prevent deleting a service that has subservices in use
       const r = await pool.query(
@@ -377,7 +384,7 @@ export async function deleteSetting(
         ) LIMIT 1`,
         [id]
       );
-      inUse = r.rowCount > 0;
+      inUse = (r.rowCount ?? 0) > 0;
     }
 
     if (inUse) {
@@ -387,13 +394,19 @@ export async function deleteSetting(
     await pool.query(`DELETE FROM ${type} WHERE id = $1`, [id]);
     revalidatePath("/settings");
     return { message: "Deleted successfully!" };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("deleteSetting error:", err);
-    return { state_error: "Unexpected error. Please try again." };
+
+    // You could branch on specific err.code here if needed:
+    // if (isDBError(err) && err.code === "23503") { ... }
+
+    return {
+      state_error: "Unexpected error. Please try again.",
+    };
   }
 }
-// Add these new functions:
 
+// Add these new functions:
 export async function updateService(
   id: number,
   newName: string
@@ -412,13 +425,16 @@ export async function updateService(
     await pool.query("COMMIT");
     revalidatePath("/settings");
     return { message: "Service updated successfully!" };
-  } catch (err: any) {
+  } catch (err: unknown) {
     await pool.query("ROLLBACK");
     console.error("updateService error:", err);
-    if (err.code === "23505") {
-      return { error: "A service with that name already exists." };
-    }
-    return { error: "Unexpected error. Please try again." };
+
+    const errorMessage =
+      isDBError(err) && err.code === "23505"
+        ? "A service with that name already exists."
+        : "Unexpected error. Please try again.";
+
+    return { error: errorMessage };
   }
 }
 
@@ -445,12 +461,15 @@ export async function updateSubservice(
     );
     revalidatePath("/settings");
     return { message: "Updated successfully!" };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("updateSubservice error:", err);
-    if (err.code === "23505") {
-      return { state_error: "A sub-service with that name already exists." };
-    }
-    return { state_error: "Unexpected error. Please try again." };
+
+    const state_error =
+      isDBError(err) && err.code === "23505"
+        ? "A sub-service with that name already exists."
+        : "Unexpected error. Please try again.";
+
+    return { state_error };
   }
 }
 
@@ -517,11 +536,14 @@ export async function addSubservice(
 
     revalidatePath("/settings");
     return { message: "Sub-service added!" };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("addSubservice error:", err);
-    if (err.code === "23505") {
-      return { state_error: "That sub-service already exists." };
-    }
-    return { state_error: "Unexpected error." };
+
+    const state_error =
+      isDBError(err) && err.code === "23505"
+        ? "That sub-service already exists."
+        : "Unexpected error.";
+
+    return { state_error };
   }
 }

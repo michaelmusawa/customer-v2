@@ -11,13 +11,12 @@ import { computeTotals } from "@/app/lib/utils";
 
 interface Props {
   items: ServiceRankingItem[] | ShiftServiceSection[];
-  rankBy: boolean;
-  groupByShiftFlag: boolean;
+  rankBy: string;
+  groupByShiftFlag?: boolean;
 }
 
 export default function FullServiceRankingModal({
   items,
-  rankBy,
   groupByShiftFlag,
 }: Props) {
   const [open, setOpen] = useState(false);

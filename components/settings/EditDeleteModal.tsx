@@ -6,7 +6,7 @@ import SubmitButton from "../ui/SubmitButton";
 import { updateSetting, deleteSetting } from "@/app/lib/settingsActions";
 import { FiEdit, FiTrash2, FiX } from "react-icons/fi";
 import { useRouter } from "next/navigation";
-import { initialSettingState, SettingActionState } from "@/app/lib/definitions";
+import { initialSettingState } from "@/app/lib/definitions";
 
 interface EditDeleteModalProps {
   type: "stations" | "shifts" | "counters" | "services";
@@ -60,9 +60,9 @@ export function EditModal({ type, id, currentName }: EditDeleteModalProps) {
             </div>
 
             <div className="p-6">
-              {state?.error && (
+              {state?.state_error && (
                 <div className="p-3 mb-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg border border-red-200 dark:border-red-700/50">
-                  {state.error}
+                  {state.state_error}
                 </div>
               )}
               {state?.message && (
@@ -155,9 +155,9 @@ export function DeleteModal({ type, id, currentName }: EditDeleteModalProps) {
             </div>
 
             <div className="p-6">
-              {state?.error && (
+              {state?.state_error && (
                 <div className="p-3 mb-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg border border-red-200 dark:border-red-700/50">
-                  {state.error}
+                  {state.state_error}
                 </div>
               )}
               {state?.message && (

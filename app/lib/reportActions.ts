@@ -3,9 +3,9 @@
 import pool from "./db";
 
 export async function fetchSummaryStats(
-  startDate: string,
-  endDate: string,
-  station: string
+  startDate?: string,
+  endDate?: string,
+  station?: string
 ): Promise<{
   totalRecords: number;
   totalValue: number;
@@ -76,11 +76,11 @@ export type ShiftRankingSection = {
  * Now returns for each biller: { key, count, clients, value }
  */
 export async function fetchRankingData(
-  startDate: string,
-  endDate: string,
-  station: string,
-  rankBy: string,
-  groupBy: boolean
+  startDate?: string,
+  endDate?: string,
+  station?: string,
+  rankBy?: string,
+  groupBy?: boolean
 ): Promise<RankingDataItem[] | ShiftRankingSection[]> {
   const metric = rankBy ? `SUM(r.value)` : `COUNT(*)`;
 
@@ -160,11 +160,11 @@ export type ShiftServiceSection = {
 };
 
 export async function fetchServiceRankingData(
-  startDate: string,
-  endDate: string,
-  station: string,
-  rankBy: string,
-  groupByShiftFlag: boolean
+  startDate?: string,
+  endDate?: string,
+  station?: string,
+  rankBy?: string,
+  groupByShiftFlag?: boolean
 ): Promise<ServiceRankingItem[] | ShiftServiceSection[]> {
   const metric = rankBy ? `SUM(r.value)` : `COUNT(*)`;
 
@@ -245,9 +245,9 @@ export type ShiftSummaryItem = {
  *  - total value
  */
 export async function fetchShiftSummaryData(
-  startDate: string,
-  endDate: string,
-  station: string
+  startDate?: string,
+  endDate?: string,
+  station?: string
 ): Promise<ShiftSummaryItem[]> {
   const clauses: string[] = [];
   const params: (string | number)[] = [];

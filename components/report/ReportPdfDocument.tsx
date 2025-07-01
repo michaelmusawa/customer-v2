@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
 });
 
 const formatCurrency = (n: number) => `${n.toLocaleString("en-US")}`;
-const safeNumber = (value: any): number => {
+const safeNumber = (value: number | string): number => {
   if (typeof value === "number") return value;
   if (typeof value === "string") {
     const cleaned = value.replace(/[^\d.]/g, "");
@@ -235,7 +235,7 @@ export interface ReportData {
   startDate?: string;
   endDate?: string;
   station?: string;
-  rankByValue?: boolean;
+  rankBy?: string;
   groupByShift?: boolean;
   summary?: DashboardSummary;
   shiftSummary?: ShiftSummaryItem[];
@@ -244,7 +244,11 @@ export interface ReportData {
 }
 
 const isGrouped = (
-  data: any
+  data:
+    | RankingDataItem[]
+    | ServiceRankingItem[]
+    | ShiftRankingSection[]
+    | ShiftServiceSection[]
 ): data is ShiftRankingSection[] | ShiftServiceSection[] => {
   return Array.isArray(data) && data.length > 0 && "shift" in data[0];
 };
@@ -254,7 +258,7 @@ export default function ReportPdfDocument(raw: ReportData) {
     startDate = "",
     endDate = "",
     station = "",
-    rankByValue = false,
+    rankBy = "",
     groupByShift = false,
     summary = EMPTY_SUMMARY,
     shiftSummary = [],
@@ -266,7 +270,7 @@ export default function ReportPdfDocument(raw: ReportData) {
 
   const renderTable = (
     headers: string[],
-    data: any[],
+    data: RankingDataItem[] | ServiceRankingItem[] | ShiftServiceSection[],
     grouped: boolean,
     isService = false
   ) => {
@@ -405,7 +409,7 @@ export default function ReportPdfDocument(raw: ReportData) {
           <Text style={styles.filters}>
             {[
               `Station: ${station || "All"}`,
-              `Ranked by: ${rankByValue ? "Value" : "Count"}`,
+              `Ranked by: ${rankBy ? "Value" : "Count"}`,
               `Group by shift: ${groupByShift ? "Yes" : "No"}`,
             ].join(" • ")}
           </Text>

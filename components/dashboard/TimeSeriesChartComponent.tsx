@@ -1,6 +1,7 @@
 // components/dashboard/TimeSeriesChartComponent.tsx
 "use client";
 
+import { TimePoint } from "@/app/lib/dashboardActions";
 import React from "react";
 import {
   Line,
@@ -12,7 +13,7 @@ import {
   CartesianGrid,
 } from "recharts";
 
-const TimeSeriesChartComponent = ({ data }: { data: any }) => {
+const TimeSeriesChartComponent = ({ data }: { data: TimePoint[] }) => {
   return (
     <div className="h-80">
       <ResponsiveContainer width="100%" height="100%">

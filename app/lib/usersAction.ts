@@ -12,6 +12,7 @@ import { auth } from "@/auth";
 import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs/promises";
+import { isDBError } from "./utils";
 
 const AddUserSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -396,7 +397,7 @@ export async function archiveUser(
     // revalidate any pages showing users
     revalidatePath("/dashboard");
     return { message: "User archived." };
-  } catch (err: any) {
+  } catch (err) {
     console.error("archiveUser error:", err);
     return { state_error: "Could not archive user." };
   }
@@ -441,13 +442,15 @@ export async function activateUser(
       state_error: null,
       errors: {},
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("activateUser error:", err);
+    const state_error =
+      isDBError(err) && err.code === "23503"
+        ? "Cannot activate this user due to referential integrity."
+        : "Failed to activate user. Please try again later.";
+
     return {
-      state_error:
-        err.code === "23503"
-          ? "Cannot activate this user due to referential integrity."
-          : "Failed to activate user. Please try again later.",
+      state_error,
       errors: {},
       message: null,
     };

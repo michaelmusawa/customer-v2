@@ -18,6 +18,7 @@ export interface User {
 // app/lib/types/userActionState.ts
 export type UserActionState = {
   errors?: {
+    userId?: string[];
     name?: string[];
     email?: string[];
     station?: string[];

@@ -32,7 +32,7 @@ export async function fetchRecordsPages(
 ): Promise<number> {
   const ITEMS_PER_PAGE = 10;
   const likeParam = `%${query}%`;
-  const params: any[] = [likeParam];
+  const params = [likeParam];
 
   let countSql = `
     SELECT COUNT(*) AS total
@@ -77,7 +77,7 @@ export async function fetchRecordsPages(
     const stationId = user?.stationId;
     if (stationId != null) {
       where.push(`u."stationId" = $${params.length + 1}`);
-      params.push(stationId);
+      params.push(`${stationId}`);
     }
   } else if (role === "biller") {
     // only your own records
@@ -87,7 +87,7 @@ export async function fetchRecordsPages(
     const userId = user?.id;
     if (userId != null) {
       where.push(`r."userId" = $${params.length + 1}`);
-      params.push(userId);
+      params.push(`${userId}`);
     }
   }
   // admin & coordinator: no extra filter
@@ -110,7 +110,7 @@ export async function fetchFilteredRecords(
   const ITEMS_PER_PAGE = 10;
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
   const likeParam = `%${query}%`;
-  const params: any[] = [likeParam];
+  const params = [likeParam];
 
   let sql = `
     SELECT
@@ -161,7 +161,7 @@ export async function fetchFilteredRecords(
     const stationId = user?.stationId;
     if (stationId != null) {
       where.push(`u."stationId" = $${params.length + 1}`);
-      params.push(stationId);
+      params.push(`${stationId}`);
     }
   } else if (role === "biller") {
     const session = await auth();
@@ -170,7 +170,7 @@ export async function fetchFilteredRecords(
     const userId = user?.id;
     if (userId != null) {
       where.push(`r."userId" = $${params.length + 1}`);
-      params.push(userId);
+      params.push(`${userId}`);
     }
   }
 
@@ -180,7 +180,7 @@ export async function fetchFilteredRecords(
     LIMIT $${params.length + 1}
     OFFSET $${params.length + 2}
   `;
-  params.push(ITEMS_PER_PAGE, offset);
+  params.push(`${ITEMS_PER_PAGE}`, `${offset}`);
 
   const res = await pool.query<RecordRow>(sql, params);
   return res.rows;
@@ -214,7 +214,7 @@ export async function fetchEditedRecordsPages(
 ): Promise<number> {
   const ITEMS_PER_PAGE = 10;
   const likeParam = `%${query}%`;
-  const params: any[] = [likeParam];
+  const params = [likeParam];
 
   let countSql = `
     SELECT COUNT(*) AS total
@@ -263,7 +263,7 @@ export async function fetchEditedRecordsPages(
     const stationId = user?.stationId;
     if (stationId != null) {
       where.push(`u."stationId" = $${params.length + 1}`);
-      params.push(stationId);
+      params.push(`${stationId}`);
     }
   } else if (role === "biller") {
     const session = await auth();
@@ -272,7 +272,7 @@ export async function fetchEditedRecordsPages(
     const userId = user?.id;
     if (userId != null) {
       where.push(`r."billerId" = $${params.length + 1}`);
-      params.push(userId);
+      params.push(`${userId}`);
     }
   }
 
@@ -294,7 +294,7 @@ export async function fetchFilteredEditedRecords(
   const ITEMS_PER_PAGE = 10;
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
   const likeParam = `%${query}%`;
-  const params: any[] = [likeParam];
+  const params = [likeParam];
 
   let sql = `
     SELECT
@@ -356,7 +356,7 @@ export async function fetchFilteredEditedRecords(
     const stationId = user?.stationId;
     if (stationId != null) {
       where.push(`u."stationId" = $${params.length + 1}`);
-      params.push(stationId);
+      params.push(`${stationId}`);
     }
   } else if (role === "biller") {
     const session = await auth();
@@ -365,7 +365,7 @@ export async function fetchFilteredEditedRecords(
     const userId = user?.id;
     if (userId != null) {
       where.push(`r."billerId" = $${params.length + 1}`);
-      params.push(userId);
+      params.push(`${userId}`);
     }
   }
 
@@ -375,7 +375,7 @@ export async function fetchFilteredEditedRecords(
     LIMIT $${params.length + 1}
     OFFSET $${params.length + 2}
   `;
-  params.push(ITEMS_PER_PAGE, offset);
+  params.push(`${ITEMS_PER_PAGE}`, `${offset}`);
 
   const res = await pool.query<RecordRow>(sql, params);
   return res.rows;
@@ -439,7 +439,7 @@ export async function addRecord(
 
   if (Object.keys(rowErrors).length) {
     return {
-      errors: rowErrors as any,
+      errors: rowErrors,
       message: "Please fix the errors below.",
     };
   }

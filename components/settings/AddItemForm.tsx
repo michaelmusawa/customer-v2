@@ -24,17 +24,39 @@ AddItemFormProps) {
     e.preventDefault();
     setSubmitting(true);
     setError("");
+
     try {
       const res = await fetch(`/api/settings/${type}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ value }),
       });
-      if (!res.ok) throw new Error("Request failed");
+
+      if (!res.ok) {
+        // You could parse JSON for validation errors:
+        // const errorBody = await res.json();
+        // if (errorBody.code === "ValidationError") { ... }
+        throw new Error("Request failed");
+      }
+
       setValue("");
-      onSuccess?.();
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (err) {
+      console.error("Error adding item:", err);
+
+      let message = "Something went wrong";
+
+      if (err instanceof Error) {
+        if (err.message === "Request failed") {
+          message = "Failed to add item. Please try again.";
+        } else if (err instanceof TypeError) {
+          // fetch throws TypeError for network failures
+          message = "Network error. Please check your connection.";
+        } else if (err.message.includes("ValidationError")) {
+          message = "Invalid input. Please check your data.";
+        }
+      }
+
+      setError(message);
     } finally {
       setSubmitting(false);
     }

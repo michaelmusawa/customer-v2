@@ -1,11 +1,11 @@
 // components/records/AddRecordModal.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useActionState } from "react";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { addRecord, editRecord } from "@/app/lib/recordsActions";
-import type { Record, RecordActionState } from "@/app/lib/definitions";
+import type { RecordActionState } from "@/app/lib/definitions";
 import {
   FiX,
   FiPlus,
@@ -18,7 +18,15 @@ import {
 } from "react-icons/fi";
 
 interface AddRecordModalProps {
-  record?: Record;
+  record?: {
+    id?: number;
+    ticket?: string;
+    name?: string;
+    service?: string | null;
+    subService?: string | null;
+    value?: number | null;
+    recordNumber?: string | null;
+  };
 }
 
 type Row = {
@@ -44,10 +52,10 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
     isEdit
       ? [
           {
-            service: record!.service,
-            subService: record!.subService || "",
-            value: record!.value.toString(),
-            recordNumber: record!.recordNumber || "",
+            service: record?.service || "",
+            subService: record?.subService || "",
+            value: record?.value?.toString() || "0",
+            recordNumber: record?.recordNumber || "",
           },
         ]
       : [{ service: "", subService: "", value: "", recordNumber: "" }]

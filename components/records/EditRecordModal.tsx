@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useActionState } from "react";
-import type { EditedRecord, RecordActionState } from "@/app/lib/definitions";
+import type { RecordActionState } from "@/app/lib/definitions";
 import { decideEditedRecord } from "@/app/lib/recordsActions";
 import {
   FiX,
@@ -11,12 +11,21 @@ import {
   FiXCircle,
   FiAlertTriangle,
   FiEdit,
-  FiInfo,
 } from "react-icons/fi";
 import SubmitButton from "../ui/SubmitButton";
 
 interface Props {
-  editedRecord: EditedRecord;
+  editedRecord: {
+    id: number;
+    recordId: number;
+    ticket: string;
+    recordType: string | null;
+    name: string;
+    service: string;
+    subService: string | null;
+    recordNumber: string | null;
+    value: number;
+  };
 }
 
 type RecordRow = {
@@ -84,7 +93,11 @@ export default function EditRecordModal({
   };
 
   // Build a list of changed fields
-  const diffs: { label: string; from: any; to: any }[] = [];
+  const diffs: {
+    label: string;
+    from: string | number | null;
+    to: string | number | null;
+  }[] = [];
   if (original) {
     const fields: [keyof RecordRow, string][] = [
       ["ticket", "Ticket"],
@@ -97,7 +110,7 @@ export default function EditRecordModal({
     ];
     fields.forEach(([key, label]) => {
       const from = original[key];
-      const to = (editedRecord as any)[key];
+      const to = editedRecord[key];
       if (`${from ?? ""}` !== `${to ?? ""}`) {
         diffs.push({ label, from, to });
       }
@@ -328,10 +341,10 @@ export default function EditRecordModal({
   );
 }
 
-const FiArrowRight = () => (
+const FiArrowRight = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    className="h-4 w-4 text-gray-400"
+    className={`h-4 w-4 ${className || ""}`}
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"

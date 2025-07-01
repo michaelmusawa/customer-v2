@@ -31,7 +31,7 @@ const Page = async (props: {
     station = "",
     startDate = "",
     endDate = "",
-    groupByShift = "",
+    groupByShift = undefined,
     rankBy = "",
   } = (await props.searchParams) ?? {};
 
@@ -61,11 +61,11 @@ const Page = async (props: {
               />
             </div>
             <div className="md:col-span-2">
-              <StationFilter selected={station} />
+              <StationFilter station={station} />
             </div>
             <div className="md:col-span-3 flex gap-3">
-              <RankFilter selected={rankBy} />
-              <GroupByShiftFilter selected={groupByShift} />
+              <RankFilter />
+              <GroupByShiftFilter />
             </div>
           </div>
         </div>
