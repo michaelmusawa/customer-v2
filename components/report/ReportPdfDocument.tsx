@@ -492,7 +492,7 @@ export default function ReportPdfDocument(raw: ReportData) {
           </View>
           {renderTable(
             ["Rank", "Biller", "Count", "Clients", "Value (KES)"],
-            billerData as any[],
+            billerData as RankingDataItem[],
             isGrouped(billerData),
             false
           )}
@@ -505,7 +505,7 @@ export default function ReportPdfDocument(raw: ReportData) {
           </View>
           {renderTable(
             ["Rank", "Service", "Count", "Clients", "Value (KES)"],
-            serviceData as any[],
+            serviceData as ServiceRankingItem[],
             isGrouped(serviceData),
             true
           )}
@@ -559,7 +559,7 @@ export default function ReportPdfDocument(raw: ReportData) {
 
         {/* Footer & Page Numbers */}
         <View style={styles.footer}>
-          <Text>Let's make Nairobi work</Text>
+          <Text>Let&apos;s make Nairobi work</Text>
           <Text>{new Date().toLocaleString()}</Text>
         </View>
         <Text

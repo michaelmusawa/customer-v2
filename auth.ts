@@ -5,6 +5,11 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { getUser } from "./app/lib/loginActions";
 
+interface User {
+  email: string;
+  password: string;
+}
+
 export const { auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
@@ -16,7 +21,7 @@ export const { auth, signIn, signOut } = NextAuth({
 
         if (parsedCredentials.success) {
           const { email, password } = parsedCredentials.data;
-          const user = await getUser(email);
+          const user = (await getUser(email)) as User;
           if (!user) return null;
           const passwordsMatch = await bcrypt.compare(password, user.password);
 

@@ -1,16 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getSubservices } from "@/app/lib/settingsActions";
 
 export async function GET(
-  request: NextRequest,
-  props: {
-    params?: Promise<{
-      service?: string;
-    }>;
-  }
+  request: Request,
+  { params }: { params: Promise<{ service: string }> }
 ) {
-  const params = await props.params;
-  const service = params?.service || "";
+  const { service } = await params;
+
   try {
     const items = await getSubservices(service);
     return NextResponse.json({ items });

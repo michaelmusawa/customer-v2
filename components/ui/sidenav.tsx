@@ -6,7 +6,6 @@ import Logo from "../logo";
 import NavLinks from "./nav-links";
 import { getUser } from "@/app/lib/loginActions";
 import Image from "next/image";
-import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
 export default async function SideNav() {
   const session = await auth();

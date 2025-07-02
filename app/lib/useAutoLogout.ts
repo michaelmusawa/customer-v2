@@ -37,5 +37,5 @@ export function useAutoLogout() {
       if (timerRef.current !== null) clearTimeout(timerRef.current);
       events.forEach((e) => window.removeEventListener(e, resetTimer));
     };
-  }, []);
+  });
 }

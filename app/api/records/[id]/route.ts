@@ -1,17 +1,12 @@
 // app/api/records/[id]/route.ts
 import pool from "@/app/lib/db";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 export async function GET(
-  request: NextRequest,
-  props: {
-    params?: Promise<{
-      id?: string;
-    }>;
-  }
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const params = await props.params;
-  const id = params?.id || "";
+  const { id } = await params;
 
   if (Number.isNaN(id)) {
     return NextResponse.json({ error: "Invalid record id" }, { status: 400 });

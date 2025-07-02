@@ -3,10 +3,7 @@
 
 import React from "react";
 import { useActionState } from "react";
-import {
-  ArchiveActionState,
-  initialUserActionState,
-} from "@/app/lib/definitions";
+import { initialUserActionState } from "@/app/lib/definitions";
 import SubmitButton from "../ui/SubmitButton";
 import { FiTrash2, FiX } from "react-icons/fi";
 import { archiveUser } from "@/app/lib/usersAction";
@@ -18,10 +15,10 @@ interface ArchiveUserFormProps {
 export default function ArchiveUserForm({ userId }: ArchiveUserFormProps) {
   const [open, setOpen] = React.useState(false);
 
-  const [state, formAction, isLoading] = useActionState<
-    typeof archiveUser,
-    ArchiveActionState
-  >(archiveUser, initialUserActionState);
+  const [state, formAction, isLoading] = useActionState(
+    archiveUser,
+    initialUserActionState
+  );
 
   return (
     <>

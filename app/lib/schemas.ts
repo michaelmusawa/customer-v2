@@ -116,3 +116,35 @@ export type AddSubserviceInput = z.infer<typeof AddSubserviceSchema>;
 export const ArchiveUserSchema = z.object({
   userId: z.coerce.number().int().positive(),
 });
+
+// 1. Schema for external POST payload (no `token` here)
+export const ExternalRecordSchema = z.preprocess(
+  (raw) => {
+    // Only objects can have subservice keys
+    if (raw !== null && typeof raw === "object") {
+      const obj = raw as Record<string, unknown>;
+
+      // If legacy `subservice` exists but no `subService` yet, copy it over
+      if ("subservice" in obj && !("subService" in obj)) {
+        obj.subService = obj.subservice;
+      }
+
+      return obj;
+    }
+
+    return raw;
+  },
+  z.object({
+    ticket: z.string().nonempty(),
+    recordType: z.string().optional(),
+    name: z.string().nonempty(),
+    service: z.string().nonempty(),
+    subService: z.string().optional(),
+    recordNumber: z.string().optional(),
+    value: z.preprocess(
+      (val) =>
+        typeof val === "string" ? parseFloat(val.replace(/,/g, "")) : val,
+      z.number().int().nonnegative()
+    ),
+  })
+);
