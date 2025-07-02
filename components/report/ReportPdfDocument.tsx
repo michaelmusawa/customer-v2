@@ -11,13 +11,13 @@ import {
   Image,
 } from "@react-pdf/renderer";
 import type {
-  DashboardSummary,
   ShiftSummaryItem,
   RankingDataItem,
   ShiftRankingSection,
   ServiceRankingItem,
   ShiftServiceSection,
 } from "@/app/lib/reportActions";
+import { DashboardSummary } from "@/app/lib/definitions";
 
 // Register fonts
 Font.register({
@@ -37,17 +37,17 @@ Font.register({
   ],
 });
 
-// Color palette
+// Nairobi City County color palette
 const COLORS = {
-  primary: "#1a3a6c",
-  secondary: "#4a6fa5",
-  accent: "#e85a4f",
-  success: "#4caf50",
-  background: "#f8f9fa",
-  lightText: "#ffffff",
-  darkText: "#333333",
-  border: "#e0e0e0",
-  cardBg: "#ffffff",
+  primary: "#006400", // Dark green
+  secondary: "#FFD700", // Gold/yellow
+  accent: "#8B4513", // Saddle brown for accents
+  lightGreen: "#E8F5E9", // Light green for backgrounds
+  lightText: "#ffffff", // White text
+  darkText: "#333333", // Dark text
+  border: "#C8E6C9", // Light green border
+  cardBg: "#ffffff", // White card background
+  headerBg: "#004d00", // Darker green for headers
 };
 
 const styles = StyleSheet.create({
@@ -55,82 +55,106 @@ const styles = StyleSheet.create({
     padding: 40,
     fontFamily: "Inter",
     fontSize: 10,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.lightGreen,
   },
   container: {
     marginBottom: 20,
   },
   header: {
     marginBottom: 20,
-    paddingBottom: 15,
+    padding: 15,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    textAlign: "center",
+    boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+  },
+  titleContainer: {
+    marginBottom: 10,
     borderBottomWidth: 2,
-    borderBottomColor: COLORS.primary,
+    borderBottomColor: COLORS.secondary,
+    paddingBottom: 10,
   },
   title: {
     fontSize: 24,
     fontWeight: 700,
-    color: COLORS.primary,
+    color: COLORS.lightText,
     textAlign: "center",
     marginBottom: 5,
+    textTransform: "uppercase",
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 14,
     color: COLORS.secondary,
     textAlign: "center",
     marginBottom: 8,
+    fontWeight: 500,
+  },
+  motto: {
+    fontSize: 10,
+    color: COLORS.lightText,
+    textAlign: "center",
+    marginTop: 5,
   },
   filters: {
     fontSize: 10,
-    color: "#666666",
+    color: COLORS.lightText,
     textAlign: "center",
-    marginBottom: 10,
+    marginTop: 10,
+    backgroundColor: "rgba(0, 80, 0, 0.7)",
+    padding: 5,
+    borderRadius: 4,
   },
   logo: {
     width: 80,
     height: 80,
-    marginBottom: 15,
+    marginBottom: 10,
     alignSelf: "center",
   },
   cardContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 25,
+    gap: 12,
   },
   card: {
-    width: "24%",
+    flex: 1,
     backgroundColor: COLORS.cardBg,
-    borderRadius: 6,
+    borderRadius: 8,
     padding: 15,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    borderTopWidth: 4,
+    borderTopColor: COLORS.secondary,
+    boxShadow: "0 2px 5px rgba(0,0,0,0.05)",
   },
   cardTitle: {
     fontSize: 10,
-    color: COLORS.secondary,
+    color: COLORS.primary,
     marginBottom: 8,
     fontWeight: 500,
   },
   cardValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 700,
     color: COLORS.primary,
+    textAlign: "center",
+    paddingVertical: 5,
   },
   section: {
     marginBottom: 25,
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 8,
+    overflow: "hidden",
+    boxShadow: "0 2px 5px rgba(0,0,0,0.05)",
   },
   sectionHeader: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.headerBg,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    marginBottom: 10,
-    borderRadius: 4,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: 700,
-    color: COLORS.lightText,
+    color: COLORS.secondary,
+    textTransform: "uppercase",
   },
   table: {
     width: "100%",
@@ -141,7 +165,7 @@ const styles = StyleSheet.create({
   },
   tableHeader: {
     flexDirection: "row",
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.primary,
   },
   headerCell: {
     flex: 1,
@@ -166,7 +190,7 @@ const styles = StyleSheet.create({
     color: COLORS.darkText,
   },
   groupHeader: {
-    backgroundColor: "#e0e7ff",
+    backgroundColor: "#FFF9C4",
     padding: 8,
     marginTop: 10,
     marginBottom: 5,
@@ -185,7 +209,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     fontSize: 8,
-    color: "#666666",
+    color: COLORS.primary,
+    fontWeight: 500,
   },
   pageNumber: {
     position: "absolute",
@@ -194,11 +219,11 @@ const styles = StyleSheet.create({
     right: 0,
     textAlign: "center",
     fontSize: 8,
-    color: "#666666",
+    color: COLORS.primary,
   },
   totalsRow: {
     flexDirection: "row",
-    backgroundColor: "#e0e7ff",
+    backgroundColor: "#FFFDE7",
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
     padding: 8,
@@ -210,6 +235,18 @@ const styles = StyleSheet.create({
     fontWeight: 700,
     textAlign: "center",
     color: COLORS.primary,
+  },
+  countyBadge: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+    backgroundColor: COLORS.secondary,
+    color: COLORS.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    fontSize: 8,
+    fontWeight: 700,
   },
 });
 
@@ -224,7 +261,7 @@ const safeNumber = (value: number | string): number => {
   return 0;
 };
 
-const EMPTY_SUMMARY: DashboardSummary = {
+const EMPTY_SUMMARY = {
   totalRecords: 0,
   totalValue: 0,
   totalServices: 0,
@@ -381,14 +418,23 @@ export default function ReportPdfDocument(raw: ReportData) {
         <View style={styles.totalsRow}>
           <Text style={[styles.totalsCell, { flex: 2 }]}>TOTALS</Text>
           <Text style={styles.totalsCell}>
-            {data.reduce((sum, i) => sum + safeNumber(i.count), 0)}
+            {data.reduce(
+              (sum, i) => sum + safeNumber("count" in i ? i.count : 0),
+              0
+            )}
           </Text>
           <Text style={styles.totalsCell}>
-            {data.reduce((sum, i) => sum + safeNumber(i.clients), 0)}
+            {data.reduce(
+              (sum, i) => sum + safeNumber("clients" in i ? i.clients : 0),
+              0
+            )}
           </Text>
           <Text style={styles.totalsCell}>
             {formatCurrency(
-              data.reduce((sum, i) => sum + safeNumber(i.value), 0)
+              data.reduce(
+                (sum, i) => sum + safeNumber("value" in i ? i.value : 0),
+                0
+              )
             )}
           </Text>
         </View>
@@ -399,15 +445,24 @@ export default function ReportPdfDocument(raw: ReportData) {
   return (
     <Document>
       <Page size="A4" orientation="landscape" style={styles.page}>
+        {/* County Badge */}
+        <View style={styles.countyBadge}>
+          <Text>CUSTOMER SERVICE APP</Text>
+        </View>
+
         {/* Header */}
         <View style={styles.header}>
-          <Image src="/images/county.png" style={styles.logo} alt="" />
-          <Text style={styles.title}>SERVICE AGENT PERFORMANCE REPORT</Text>
-          <Text style={styles.subtitle}>
-            Report Period: {startDate || "—"} to {endDate || "—"}
+          <Image src="/images/county.png" style={styles.logo} />
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Nairobi City County</Text>
+            <Text style={styles.subtitle}>Department of Customer Service</Text>
+          </View>
+          <Text style={styles.motto}>
+            INCLUSIVITY, PUBLIC PARTICIPATION, & CUSTOMER SERVICES
           </Text>
           <Text style={styles.filters}>
             {[
+              `Period: ${startDate || "—"} to ${endDate || "—"}`,
               `Station: ${station || "All"}`,
               `Ranked by: ${rankBy ? "Value" : "Count"}`,
               `Group by shift: ${groupByShift ? "Yes" : "No"}`,
@@ -433,7 +488,7 @@ export default function ReportPdfDocument(raw: ReportData) {
         {/* Biller Ranking */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>BILLER RANKING</Text>
+            <Text style={styles.sectionTitle}>BILLER PERFORMANCE RANKING</Text>
           </View>
           {renderTable(
             ["Rank", "Biller", "Count", "Clients", "Value (KES)"],
@@ -446,7 +501,7 @@ export default function ReportPdfDocument(raw: ReportData) {
         {/* Service Ranking */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>SERVICE RANKING</Text>
+            <Text style={styles.sectionTitle}>SERVICE UTILIZATION RANKING</Text>
           </View>
           {renderTable(
             ["Rank", "Service", "Count", "Clients", "Value (KES)"],
@@ -459,7 +514,7 @@ export default function ReportPdfDocument(raw: ReportData) {
         {/* Shift Summary */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>SHIFT SUMMARY</Text>
+            <Text style={styles.sectionTitle}>SHIFT PERFORMANCE SUMMARY</Text>
           </View>
           {shiftSummary.length > 0 ? (
             <View style={styles.table}>
@@ -475,7 +530,9 @@ export default function ReportPdfDocument(raw: ReportData) {
                   key={idx}
                   style={[
                     styles.row,
-                    idx === shiftSummary.length - 1 && { borderBottomWidth: 0 },
+                    idx === shiftSummary.length - 1
+                      ? { borderBottomWidth: 0 }
+                      : {},
                   ]}
                 >
                   <Text style={styles.cell}>{sh.shift}</Text>
@@ -488,15 +545,21 @@ export default function ReportPdfDocument(raw: ReportData) {
               ))}
             </View>
           ) : (
-            <Text style={{ textAlign: "center", color: COLORS.secondary }}>
-              No shift summary data
+            <Text
+              style={{
+                textAlign: "center",
+                color: COLORS.primary,
+                padding: 10,
+              }}
+            >
+              No shift summary data available
             </Text>
           )}
         </View>
 
         {/* Footer & Page Numbers */}
         <View style={styles.footer}>
-          <Text>Generated by Service Agent Dashboard</Text>
+          <Text>Let's make Nairobi work</Text>
           <Text>{new Date().toLocaleString()}</Text>
         </View>
         <Text

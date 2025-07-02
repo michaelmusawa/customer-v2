@@ -96,3 +96,10 @@ export const initialUserActionState: ArchiveActionState = {
   state_error: null,
   message: null,
 };
+
+export interface DashboardSummary {
+  totalRecords: number;
+  totalValue: number;
+  totalServices: number;
+  totalClients: number;
+}
