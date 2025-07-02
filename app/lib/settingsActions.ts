@@ -26,6 +26,7 @@ export async function addSetting(
   prev: SettingActionState,
   formData: FormData
 ): Promise<SettingActionState> {
+  console.log("formData", formData);
   const type = formData.get("type") as
     | "services"
     | "shifts"
@@ -41,7 +42,6 @@ export async function addSetting(
     const name = formData.get("name");
     const subservices = formData.getAll("subservices");
     parsed = AddSettingSchema.safeParse({ type, name, subservices });
-    parsed = AddSettingSchema.safeParse({ type, name, shift });
   } else {
     // for non-services we expect: value + (maybe) station
     const value = formData.get("value");

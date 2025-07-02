@@ -13,6 +13,11 @@ interface Props {
   station?: string;
 }
 
+interface Item {
+  name: string;
+  id: number;
+}
+
 export default function AddGroupModal({ type, label, station }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const initial: SettingActionState = {
@@ -32,7 +37,9 @@ export default function AddGroupModal({ type, label, station }: Props) {
     if (isOpen && type === "counters" && station) {
       fetch(`/api/settings/shifts?station=${encodeURIComponent(station)}`)
         .then((r) => r.json())
-        .then((data) => setShifts(data.items || []));
+        .then((data) =>
+          setShifts(data.items.map((item: Item) => item.name as string))
+        );
     }
   }, [isOpen, type, station]);
 
