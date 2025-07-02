@@ -190,6 +190,8 @@ interface RecordRow {
   id: number;
   ticket: string;
   recordType: string | null;
+  recordId: number;
+  changes: number;
   name: string;
   service: string;
   subService: string | null;
@@ -284,6 +286,7 @@ export async function fetchEditedRecordsPages(
 }
 
 /** Fetch filtered & paginated edited records (only pending for non‑billers) */
+
 export async function fetchFilteredEditedRecords(
   query: string,
   startDate: string,
@@ -294,8 +297,9 @@ export async function fetchFilteredEditedRecords(
   const ITEMS_PER_PAGE = 10;
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
   const likeParam = `%${query}%`;
-  const params = [likeParam];
+  const params: Array<string | number> = [likeParam];
 
+  // Base SQL, joining EditedRecord to original records as `orig`
   let sql = `
     SELECT
       r.id,
@@ -309,27 +313,46 @@ export async function fetchFilteredEditedRecords(
       r.value,
       c.name   AS counter,
       s.name   AS shift,
-      u.name AS "billerName",
-      r."createdAt"
+      u.name   AS "billerName",
+      r."createdAt",
+
+      -- compute how many fields differ from the original
+      (
+        (CASE WHEN r.ticket        <> orig.ticket        THEN 1 ELSE 0 END)
+      + (CASE WHEN r."recordType" <> orig."recordType" THEN 1 ELSE 0 END)
+      + (CASE WHEN r.name          <> orig.name         THEN 1 ELSE 0 END)
+      + (CASE WHEN r.service       <> orig.service      THEN 1 ELSE 0 END)
+      + (CASE WHEN r."subService"  <> orig."subService" THEN 1 ELSE 0 END)
+      + (CASE WHEN r."recordNumber"<> orig."recordNumber" THEN 1 ELSE 0 END)
+      + (CASE WHEN r.value         <> orig.value        THEN 1 ELSE 0 END)
+      ) AS changes
+
     FROM "EditedRecord" r
-    JOIN "User" u ON r."billerId" = u.id
-    JOIN counters c ON u."counterId" = c.id
-    JOIN shifts   s ON u."shiftId"   = s.id
+
+    -- join to the biller user, counters, shifts
+    JOIN "User"    u    ON r."billerId" = u.id
+    JOIN counters  c    ON u."counterId" = c.id
+    JOIN shifts    s    ON u."shiftId"   = s.id
+
+    -- here’s the original “live” record
+    JOIN records   orig ON orig.id = r."recordId"
   `;
 
+  // build up our WHERE clauses
   const where: string[] = [
     `(
       r.ticket        ILIKE $1 OR
       r."recordType"  ILIKE $1 OR
       r.name          ILIKE $1 OR
       r.service       ILIKE $1 OR
-      r."recordNumber" ILIKE $1 OR
+      r."subService"  ILIKE $1 OR
+      r."recordNumber"ILIKE $1 OR
       c.name          ILIKE $1 OR
       s.name          ILIKE $1
     )`,
   ];
 
-  // Date filtering
+  // date filters
   if (startDate && endDate) {
     where.push(
       `r."createdAt" BETWEEN $${params.length + 1} AND $${params.length + 2}`
@@ -343,42 +366,43 @@ export async function fetchFilteredEditedRecords(
     params.push(endDate);
   }
 
-  // Status filtering for non‑billers
+  // only pending for non‑billers
   if (role !== "biller") {
     where.push(`r.status = 'pending'`);
   }
 
-  // Role‑specific scoping
+  // scope by station or by biller
   if (role === "supervisor") {
     const session = await auth();
     const email = session?.user?.email || "";
     const user = await getUser(email);
-    const stationId = user?.stationId;
-    if (stationId != null) {
+    if (user?.stationId) {
       where.push(`u."stationId" = $${params.length + 1}`);
-      params.push(`${stationId}`);
+      params.push(user.stationId);
     }
   } else if (role === "biller") {
     const session = await auth();
     const email = session?.user?.email || "";
     const user = await getUser(email);
-    const userId = user?.id;
-    if (userId != null) {
+    if (user?.id) {
       where.push(`r."billerId" = $${params.length + 1}`);
-      params.push(`${userId}`);
+      params.push(user.id);
     }
   }
 
+  // glue on WHERE
   sql += ` WHERE ${where.join(" AND ")}`;
+
+  // ordering & pagination
   sql += `
     ORDER BY r."createdAt" DESC
     LIMIT $${params.length + 1}
     OFFSET $${params.length + 2}
   `;
-  params.push(`${ITEMS_PER_PAGE}`, `${offset}`);
+  params.push(ITEMS_PER_PAGE, offset);
 
-  const res = await pool.query<RecordRow>(sql, params);
-  return res.rows;
+  const { rows } = await pool.query<RecordRow>(sql, params);
+  return rows;
 }
 
 /** Add new record(s) */

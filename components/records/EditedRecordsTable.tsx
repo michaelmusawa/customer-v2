@@ -94,9 +94,7 @@ const EditedRecordsTable = async ({
                     <FiEdit className="w-4 h-4" />
                   </div>
                   <div className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-                    {/* to be revisited */}
-                    {/* {r.changedFields?.length || 0} changes */}
-                    {0} changes
+                    {r.changes} change{r.changes === 1 ? "" : "s"}
                   </div>
                 </div>
               </td>

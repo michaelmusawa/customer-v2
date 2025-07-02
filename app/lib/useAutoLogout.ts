@@ -2,7 +2,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
-const IDLE_TIMEOUT = 1 * 60 * 1000;
+const IDLE_TIMEOUT = 15 * 60 * 1000;
 
 export function useAutoLogout() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
