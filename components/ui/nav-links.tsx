@@ -13,6 +13,7 @@ import {
   FiBarChart2,
   FiBell,
   FiChevronRight,
+  FiExternalLink,
 } from "react-icons/fi";
 
 export default function NavLinks({ role }: { role?: string }) {
@@ -73,6 +74,13 @@ export default function NavLinks({ role }: { role?: string }) {
       icon: <FiBell className="text-lg" />,
       role: ["biller", "supervisor"],
     },
+    {
+      name: "Easy UBP",
+      href: "https://easyubp.nairobi.go.ke", // ← fully qualified
+      icon: <FiExternalLink className="text-lg" />,
+      role: ["biller", "supervisor", "coordinator", "admin"],
+      external: true, // ← mark it external
+    },
   ];
 
   return (
@@ -81,10 +89,17 @@ export default function NavLinks({ role }: { role?: string }) {
         if (role && link.role.includes(role)) {
           const isActive = pathname === link.href;
 
+          // choose which component to render
+          const Wrapper = link.external ? "a" : Link;
+          const extraProps = link.external
+            ? { target: "_blank", rel: "noopener noreferrer" }
+            : {};
+
           return (
-            <Link
+            <Wrapper
               key={link.name}
               href={link.href}
+              {...extraProps} // add target/rel for external
               className={clsx(
                 "group flex h-14 items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-300 md:justify-start bg-gray-50 dark:bg-gray-900",
                 {
@@ -104,7 +119,7 @@ export default function NavLinks({ role }: { role?: string }) {
               </span>
               <span className="hidden md:block">{link.name}</span>
               <FiChevronRight className="ml-auto hidden text-gray-400 group-hover:text-white md:block" />
-            </Link>
+            </Wrapper>
           );
         }
       })}
