@@ -33,7 +33,6 @@ const Page = async (props: {
   const session = await auth();
   const userEmail = session?.user?.email || "";
   const user = await getUser(userEmail);
-  const role = user?.role;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 p-4 md:p-6">
@@ -70,7 +69,6 @@ const Page = async (props: {
               startDate={startDate}
               endDate={endDate}
               station={station}
-              userId={role === "biller" ? user?.id : undefined}
             />
           </Suspense>
         </div>
@@ -86,7 +84,6 @@ const Page = async (props: {
                 startDate={startDate}
                 endDate={endDate}
                 station={station}
-                userId={role === "biller" ? user?.id : undefined}
               />
             </Suspense>
           </div>
@@ -101,7 +98,6 @@ const Page = async (props: {
                   startDate={startDate}
                   endDate={endDate}
                   station={station}
-                  userId={role === "biller" ? user?.id : undefined}
                 />
               </Suspense>
             </div>
@@ -115,7 +111,6 @@ const Page = async (props: {
                   startDate={startDate}
                   endDate={endDate}
                   station={station}
-                  userId={role === "biller" ? user?.id : undefined}
                 />
               </Suspense>
             </div>
@@ -133,7 +128,6 @@ const Page = async (props: {
                 startDate={startDate}
                 endDate={endDate}
                 station={station}
-                userId={role === "biller" ? user?.id : undefined}
               />
             </Suspense>
           </div>
@@ -147,7 +141,6 @@ const Page = async (props: {
                 startDate={startDate}
                 endDate={endDate}
                 station={station}
-                userId={role === "biller" ? user?.id : undefined}
               />
             </Suspense>
           </div>

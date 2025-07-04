@@ -139,7 +139,7 @@ model Station {
 
 model Shift {
   id         Int      @id @default(autoincrement())
-  name       String   @unique
+  name       String   
   createdAt  DateTime @default(now()) @map("created_at")
 
   // NEW: each shift belongs to exactly one station
@@ -150,6 +150,8 @@ model Shift {
   counters   Counter[]
 
   users      User[]   // existing back‑relation
+
+  @@unique([stationId, name])
 
   @@map("shifts")
 }

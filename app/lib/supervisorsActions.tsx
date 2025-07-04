@@ -1,7 +1,9 @@
 "use server";
 
+import { auth } from "@/auth";
 import pool from "./db";
 import type { User } from "./definitions";
+import { getUser } from "./loginActions";
 
 /**
  * Fetch the total number of pages of users matching the filters.
@@ -51,6 +53,22 @@ export async function fetchUsersPages(
   } else if (endDate) {
     countSql += ` AND u."createdAt" <= $${params.length + 1}`;
     params.push(endDate);
+  }
+
+  // Get the current user's role and station
+  // This is necessary to apply role-based filtering
+  // and to ensure supervisors only see users from their station
+
+  const session = await auth();
+  const userEmail = session?.user?.email || "";
+  const user = await getUser(userEmail);
+  const userRole = user?.role || "";
+
+  if (userRole === "supervisor") {
+    if (user) {
+      countSql += ` AND u."stationId" = $${params.length + 1}`;
+      params.push(`${user.stationId}`);
+    }
   }
 
   // Role filtering
@@ -130,6 +148,22 @@ export async function fetchFilteredUsers(
   if (role) {
     sql += ` AND u.role = $${params.length + 1}`;
     params.push(role);
+  }
+
+  // Get the current user's role and station
+  // This is necessary to apply role-based filtering
+  // and to ensure supervisors only see users from their station
+
+  const session = await auth();
+  const userEmail = session?.user?.email || "";
+  const user = await getUser(userEmail);
+  const userRole = user?.role || "";
+
+  if (userRole === "supervisor") {
+    if (user) {
+      sql += ` AND u."stationId" = $${params.length + 1}`;
+      params.push(`${user.stationId}`);
+    }
   }
 
   // Ordering, pagination

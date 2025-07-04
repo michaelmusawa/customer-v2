@@ -26,7 +26,6 @@ export async function addSetting(
   prev: SettingActionState,
   formData: FormData
 ): Promise<SettingActionState> {
-  console.log("formData", formData);
   const type = formData.get("type") as
     | "services"
     | "shifts"
@@ -94,17 +93,27 @@ export async function addSetting(
       // -- COUNTERS --
     } else if (parsed.data.type === "counters") {
       const { value } = parsed.data;
-      // we already have `station` and the supervisor picked a `shift` name
-      // so look up the shift by name (and station scope is implicit in shift)
+      // we have both `shift` and `station` from the formData
       await pool.query(
         `
         INSERT INTO counters (name, "shiftId")
         VALUES (
           $1,
-          (SELECT id FROM shifts WHERE name = $2)
+          (
+            SELECT s.id
+              FROM shifts s
+              JOIN stations st ON s."stationId" = st.id
+             WHERE s.name = $2
+               AND st.name = $3
+             LIMIT 1
+          )
         )
         `,
-        [value.trim(), shift!] // assume you passed shift name as form field
+        [
+          value.trim(), // $1 → new counter name
+          shift!, // $2 → shift name
+          station!, // $3 → station name
+        ]
       );
 
       // -- STATIONS --
@@ -131,48 +140,70 @@ export async function addSetting(
 }
 
 /**
- * Get all entries of a given type, ordered alphabetically.
- * - for "services": returns service names
- * - for others: returns shift/counter/station names
+ * Get all entries of a given type.
+ * - services & stations: global
+ * - shifts & counters: scoped to the logged‑in user's station
  */
-// app/lib/settingsActions.ts
 export async function getSettings(
   type: "services" | "stations" | "shifts" | "counters"
 ): Promise<{ id: number; name: string }[]> {
+  // 1) find the logged‑in user
+  const session = await auth();
+  const email = session?.user?.email;
+  const me = email ? await getUser(email) : null;
+
+  // if we don't have a station context, we'll fall back to no filtering
+  const stationName = me?.station ?? null;
+
   let sql: string;
   let params: string[] = [];
 
-  // get users station
+  switch (type) {
+    case "shifts":
+      if (stationName) {
+        sql = `
+          SELECT id, name
+          FROM shifts
+          WHERE "stationId" = (
+            SELECT id FROM stations WHERE name = $1
+          )
+          ORDER BY name
+        `;
+        params = [stationName];
+      } else {
+        // no station → nothing to show
+        return [];
+      }
+      break;
 
-  const session = await auth();
-  const userEmail = session?.user?.email || "";
-  const user = await getUser(userEmail);
-  const station = user?.station || null;
+    case "counters":
+      if (stationName) {
+        sql = `
+          SELECT c.id, c.name
+          FROM counters c
+          JOIN shifts s ON c."shiftId" = s.id
+          WHERE s."stationId" = (
+            SELECT id FROM stations WHERE name = $1
+          )
+          ORDER BY s.name, c.name
+        `;
+        params = [stationName];
+      } else {
+        return [];
+      }
+      break;
 
-  if (type === "shifts") {
-    sql = `
-      SELECT id,name
-        FROM shifts
-       WHERE "stationId" = (SELECT id FROM stations WHERE name = $1)
-       ORDER BY name`;
-    params = [station!];
-  } else if (type === "counters") {
-    sql = `
-      SELECT c.id,c.name
-        FROM counters c
-        JOIN shifts s ON c."shiftId" = s.id
-       WHERE s."stationId" = (SELECT id FROM stations WHERE name = $1)
-       ORDER BY s.name, c.name`;
-    params = [station!];
-  } else {
-    // services & stations unchanged
-    sql = `SELECT id,name FROM ${type} ORDER BY name`;
+    case "services":
+    case "stations":
+    default:
+      // global lists
+      sql = `SELECT id, name FROM ${type} ORDER BY name`;
+      break;
   }
 
   const { rows } = await pool.query<{ id: number; name: string }>(sql, params);
   return rows;
 }
-
 /**
  * Given a service name, fetch its subservices.
  */
@@ -250,44 +281,56 @@ export async function getGroupedCounters(): Promise<
     counters: { id: number; name: string }[];
   }[]
 > {
+  // 1) Figure out the logged‐in user and their station
+  const session = await auth();
+  const email = session?.user?.email;
+  const me = email ? await getUser(email) : null;
+  const stationName = me?.station;
+  if (!stationName) {
+    // No station → no counters
+    return [];
+  }
+
+  // 2) Query only those shifts/counters for that station
   const { rows } = await pool.query<{
     shift_id: number;
     shift_name: string;
     counter_id: number;
     counter_name: string;
   }>(
-    `SELECT 
-      s.id AS shift_id, 
+    `
+    SELECT
+      s.id   AS shift_id,
       s.name AS shift_name,
-      c.id AS counter_id,
+      c.id   AS counter_id,
       c.name AS counter_name
     FROM counters c
-    JOIN shifts s ON c."shiftId" = s.id
-    ORDER BY s.name ASC, c.name ASC`
+    JOIN shifts s      ON c."shiftId" = s.id
+    JOIN stations st   ON s."stationId" = st.id
+    WHERE st.name = $1
+    ORDER BY s.name, c.name
+    `,
+    [stationName]
   );
 
-  // Group counters by shift
-  const grouped = rows.reduce((acc, row) => {
-    const existingGroup = acc.find((g) => g.shift.id === row.shift_id);
-
-    const counter = {
-      id: row.counter_id,
-      name: row.counter_name,
-    };
-
-    if (existingGroup) {
-      existingGroup.counters.push(counter);
-    } else {
-      acc.push({
-        shift: {
-          id: row.shift_id,
-          name: row.shift_name,
-        },
-        counters: [counter],
-      });
+  // 3) Group them in memory
+  const grouped = rows.reduce<
+    {
+      shift: { id: number; name: string };
+      counters: { id: number; name: string }[];
+    }[]
+  >((acc, row) => {
+    let grp = acc.find((g) => g.shift.id === row.shift_id);
+    if (!grp) {
+      grp = {
+        shift: { id: row.shift_id, name: row.shift_name },
+        counters: [],
+      };
+      acc.push(grp);
     }
+    grp.counters.push({ id: row.counter_id, name: row.counter_name });
     return acc;
-  }, [] as { shift: { id: number; name: string }; counters: { id: number; name: string }[] }[]);
+  }, []);
 
   return grouped;
 }

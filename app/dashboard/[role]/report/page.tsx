@@ -61,7 +61,7 @@ const Page = async (props: {
               />
             </div>
             <div className="md:col-span-2">
-              <StationFilter station={station} />
+              <StationFilter />
             </div>
             <div className="md:col-span-3 flex gap-3">
               <RankFilter />

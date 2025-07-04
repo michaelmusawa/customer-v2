@@ -154,12 +154,16 @@ export async function fetchFilteredRecords(
     params.push(endDate);
   }
 
+  console.log("Role:", role);
+
   if (role === "supervisor") {
     const session = await auth();
     const email = session?.user?.email || "";
     const user = await getUser(email);
     const stationId = user?.stationId;
-    if (stationId != null) {
+
+    console.log("Supervisor stationId:", stationId);
+    if (stationId !== null) {
       where.push(`u."stationId" = $${params.length + 1}`);
       params.push(`${stationId}`);
     }
@@ -168,7 +172,7 @@ export async function fetchFilteredRecords(
     const email = session?.user?.email || "";
     const user = await getUser(email);
     const userId = user?.id;
-    if (userId != null) {
+    if (userId !== null) {
       where.push(`r."userId" = $${params.length + 1}`);
       params.push(`${userId}`);
     }

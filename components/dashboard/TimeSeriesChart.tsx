@@ -8,13 +8,11 @@ export default async function TimeSeriesChart({
   startDate,
   endDate,
   station,
-  userId,
 }: {
   startDate: string;
   endDate: string;
   station: string;
-  userId?: number | undefined;
 }) {
-  const data = await fetchTimeSeries(startDate, endDate, station, userId);
+  const data = await fetchTimeSeries(startDate, endDate, station);
   return <TimeSeriesChartComponent data={data} />;
 }

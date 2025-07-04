@@ -8,15 +8,13 @@ export default async function SummarySection({
   startDate,
   endDate,
   station,
-  userId,
 }: {
   startDate: string;
   endDate: string;
   station: string;
-  userId?: number | undefined;
 }) {
   const { totalRecords, totalValue, totalClients, errorRate } =
-    await fetchSummaryStats(startDate, endDate, station, userId);
+    await fetchSummaryStats(startDate, endDate, station);
 
   const cards = [
     {

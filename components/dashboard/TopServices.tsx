@@ -7,14 +7,13 @@ export default async function TopServices({
   startDate,
   endDate,
   station,
-  userId,
 }: {
   startDate: string;
   endDate: string;
   station: string;
-  userId: number | undefined;
 }) {
-  const data = await fetchTopServices(startDate, endDate, station, userId);
+  const data = await fetchTopServices(startDate, endDate, station);
+
   return (
     <div>
       <SimpleTable
@@ -22,7 +21,7 @@ export default async function TopServices({
         rows={data.map((s) => [
           s.name,
           s.count,
-          `KES ${parseInt(s.value).toLocaleString()}`,
+          `KES ${s.value.toLocaleString()}`,
         ])}
       />
     </div>
