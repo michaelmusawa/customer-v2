@@ -620,7 +620,7 @@ export async function editRecord(
       ]
     );
 
-    revalidatePath("/dashboard"); // Adjust as needed
+    revalidatePath("/dashboard/biller/records"); // Adjust as needed
 
     return { message: "Record updated successfully!" };
   } catch (err) {

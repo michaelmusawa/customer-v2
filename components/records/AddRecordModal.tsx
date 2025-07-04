@@ -15,6 +15,7 @@ import {
   FiClipboard,
   FiDollarSign,
   FiChevronDown,
+  FiSettings,
 } from "react-icons/fi";
 
 interface AddRecordModalProps {
@@ -192,7 +193,7 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
               <form action={formAction} className="space-y-6">
                 {/* Hidden ID for edit mode */}
                 {isEdit && <input type="hidden" name="id" value={record!.id} />}
-
+                <input type="hidden" name="recordType" value="invoice" />
                 {/* Ticket + Customer */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
@@ -368,6 +369,26 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
                     </button>
                   )}
                 </div>
+                {/* Reason for Record */}
+
+                {isEdit && (
+                  <div className="mt-6">
+                    <div>
+                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <FiSettings className="text-gray-500" /> Reason
+                      </label>
+                      <div className="relative">
+                        <textarea
+                          name="reason"
+                          rows={2}
+                          required
+                          className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                          placeholder="Reason for editing this record"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Form Actions */}
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">

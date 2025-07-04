@@ -108,7 +108,7 @@ const EditedRecordsTable = async ({
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <EditRecordModal editedRecord={r}>
+                <EditRecordModal editedRecord={r} role={role}>
                   <button className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     Review
                   </button>

@@ -26,6 +26,7 @@ interface Props {
     recordNumber: string | null;
     value: number;
   };
+  role: string;
 }
 
 type RecordRow = {
@@ -41,6 +42,7 @@ type RecordRow = {
 
 export default function EditRecordModal({
   editedRecord,
+  role,
   children,
 }: React.PropsWithChildren<Props>) {
   const [isOpen, setIsOpen] = useState(false);
@@ -235,33 +237,40 @@ export default function EditRecordModal({
                     </div>
 
                     {/* Action Buttons */}
-                    <form action={formAction} className="pt-4">
-                      <input type="hidden" name="id" value={editedRecord.id} />
-                      <input
-                        type="hidden"
-                        name="decision"
-                        value={confirmAction ?? ""}
-                      />
 
-                      <div className="flex justify-end gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setConfirmAction("reject")}
-                          className="flex items-center gap-2 px-5 py-2.5 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors duration-300"
-                        >
-                          <FiXCircle className="text-lg" />
-                          <span>Reject Changes</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmAction("accept")}
-                          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg shadow transition-all hover:shadow-md"
-                        >
-                          <FiCheck className="text-lg" />
-                          <span>Approve Changes</span>
-                        </button>
-                      </div>
-                    </form>
+                    {role === "supervisor" && (
+                      <form action={formAction} className="pt-4">
+                        <input
+                          type="hidden"
+                          name="id"
+                          value={editedRecord.id}
+                        />
+                        <input
+                          type="hidden"
+                          name="decision"
+                          value={confirmAction ?? ""}
+                        />
+
+                        <div className="flex justify-end gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setConfirmAction("reject")}
+                            className="flex items-center gap-2 px-5 py-2.5 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors duration-300"
+                          >
+                            <FiXCircle className="text-lg" />
+                            <span>Reject Changes</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmAction("accept")}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg shadow transition-all hover:shadow-md"
+                          >
+                            <FiCheck className="text-lg" />
+                            <span>Approve Changes</span>
+                          </button>
+                        </div>
+                      </form>
+                    )}
                   </div>
                 )
               )}
