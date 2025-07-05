@@ -1,6 +1,7 @@
 // app/records/page.tsx
 import { fetchRecordsPages } from "@/app/lib/recordsActions";
 import AddRecordModal from "@/components/records/AddRecordModal";
+import ExportRecordsButton from "@/components/records/ExportRecordsButton";
 import RecordsTable from "@/components/records/RecordsTable";
 import DateRangeFilter from "@/components/ui/dateRangeFilter";
 import Pagination from "@/components/ui/pagination";
@@ -42,11 +43,19 @@ const Page = async (props: {
 
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-5 mb-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-            {role === "biller" && (
-              <div className="w-full md:w-auto">
-                <AddRecordModal />
-              </div>
-            )}
+            <div className="flex flex-wrap gap-3">
+              {role === "biller" && (
+                <div className="w-full md:w-auto">
+                  <AddRecordModal />
+                </div>
+              )}
+              <ExportRecordsButton
+                query={query}
+                startDate={startDate}
+                endDate={endDate}
+                role={role}
+              />
+            </div>
 
             <div className="flex flex-wrap gap-3 w-full md:w-auto">
               <div className="flex-1 min-w-[200px]">

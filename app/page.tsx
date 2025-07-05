@@ -32,18 +32,48 @@ export default function Page() {
           </Link>
         </div>
 
-        {/* Hero Image */}
-        <div
-          className="flex w-full md:w-3/5 items-center justify-center p-6 bg-cover bg-center rounded-2xl shadow-lg overflow-hidden"
-          style={{ backgroundImage: `url('/images/nairobibackgroung.jpg')` }}
-        >
-          <Image
-            src="/images/customerService.png"
-            width={2000}
-            height={2000}
-            alt="customer service illustration"
-            className="max-h-96 w-auto transform scale-x-[-1]"
-          />
+        {/* Enhanced Hero Image */}
+        <div className="relative w-full md:w-3/5 rounded-2xl shadow-lg overflow-hidden">
+          {/* Background with gradient overlay */}
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url('/images/nairobibackgroung.jpg')` }}
+          >
+            {/* Gradient overlay for light mode */}
+            <div className="absolute inset-0 bg-gradient-to-t from-white/90 via-white/30 to-white/10 dark:hidden"></div>
+
+            {/* Gradient overlay for dark mode */}
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 via-gray-900/40 to-gray-900/10 hidden dark:block"></div>
+          </div>
+
+          {/* Decorative elements */}
+          <div className="absolute top-4 right-4 w-24 h-24 rounded-full bg-countyYellow/20 dark:bg-countyYellow-light/20 blur-xl"></div>
+          <div className="absolute bottom-8 left-8 w-16 h-16 rounded-full bg-countyGreen/30 dark:bg-countyGreen-dark/30 blur-xl"></div>
+
+          {/* Content container */}
+          <div className="relative z-10 flex flex-col items-center justify-center h-full p-8 text-center">
+            <div className="mb-4">
+              <div className="inline-block p-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full shadow-lg">
+                <Image
+                  src="/images/customerService.png"
+                  width={800}
+                  height={800}
+                  alt="Customer service illustration"
+                  className="max-h-64 w-auto transform scale-x-[-1]"
+                />
+              </div>
+            </div>
+
+            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-4 rounded-xl shadow-lg max-w-md">
+              <h2 className="text-xl md:text-2xl font-bold text-countyGreen dark:text-countyGreen-light mb-2">
+                Efficient Service Delivery
+              </h2>
+              <p className="text-gray-700 dark:text-gray-300 text-sm md:text-base">
+                Transforming customer experience through digital innovation and
+                streamlined processes
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </main>

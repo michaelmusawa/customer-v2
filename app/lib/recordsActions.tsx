@@ -105,10 +105,10 @@ export async function fetchFilteredRecords(
   startDate: string,
   endDate: string,
   role: string | null,
-  currentPage: number
+  currentPage: number,
+  itemsPerPage: number = 10
 ): Promise<RecordRow[]> {
-  const ITEMS_PER_PAGE = 10;
-  const offset = (currentPage - 1) * ITEMS_PER_PAGE;
+  const offset = (currentPage - 1) * itemsPerPage;
   const likeParam = `%${query}%`;
   const params = [likeParam];
 
@@ -154,15 +154,12 @@ export async function fetchFilteredRecords(
     params.push(endDate);
   }
 
-  console.log("Role:", role);
-
   if (role === "supervisor") {
     const session = await auth();
     const email = session?.user?.email || "";
     const user = await getUser(email);
     const stationId = user?.stationId;
 
-    console.log("Supervisor stationId:", stationId);
     if (stationId !== null) {
       where.push(`u."stationId" = $${params.length + 1}`);
       params.push(`${stationId}`);
@@ -179,15 +176,21 @@ export async function fetchFilteredRecords(
   }
 
   sql += ` WHERE ${where.join(" AND ")}`;
-  sql += `
-    ORDER BY r."createdAt" DESC
-    LIMIT $${params.length + 1}
-    OFFSET $${params.length + 2}
-  `;
-  params.push(`${ITEMS_PER_PAGE}`, `${offset}`);
+  sql += ` ORDER BY r."createdAt" DESC `;
 
-  const res = await pool.query<RecordRow>(sql, params);
-  return res.rows;
+  // Add pagination only if itemsPerPage is not set to fetch all records
+  if (itemsPerPage > 0) {
+    sql += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2} `;
+    params.push(`${itemsPerPage}`, `${offset}`);
+  }
+
+  try {
+    const res = await pool.query<RecordRow>(sql, params);
+    return res.rows;
+  } catch (error) {
+    console.error("Database Error:", error);
+    throw new Error("Failed to fetch records");
+  }
 }
 
 interface RecordRow {

@@ -4,6 +4,7 @@ import pool from "@/app/lib/db";
 import bcrypt from "bcryptjs";
 import { ExternalRecordSchema } from "@/app/lib/schemas";
 import z from "zod";
+import { fetchFilteredRecords } from "@/app/lib/recordsActions";
 
 type ExternalRecord = z.infer<typeof ExternalRecordSchema>;
 
@@ -110,5 +111,41 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("Error inserting record:", err);
     return withCors({ error: "Database error" }, 500);
+  }
+}
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+
+  const query = searchParams.get("query") || "";
+  const startDate = searchParams.get("startDate") || "";
+  const endDate = searchParams.get("endDate") || "";
+  const role = searchParams.get("role") || "";
+
+  try {
+    // Fetch records without pagination
+    const records = await fetchFilteredRecords(
+      query,
+      startDate,
+      endDate,
+      role,
+      1, // currentPage
+      0
+    );
+
+    return new Response(JSON.stringify(records), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  } catch (error) {
+    console.error("API Error:", error);
+    return new Response(JSON.stringify({ error: "Failed to fetch records" }), {
+      status: 500,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
   }
 }
