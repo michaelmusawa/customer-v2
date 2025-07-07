@@ -36,7 +36,7 @@ export default function ReportExportButtonClient({ docProps }: Props) {
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
             loading
               ? "bg-gray-400 cursor-not-allowed"
-              : "bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white shadow-md hover:shadow-lg"
+              : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md hover:shadow-lg"
           }`}
         >
           {loading ? (

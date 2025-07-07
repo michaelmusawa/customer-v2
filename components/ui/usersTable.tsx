@@ -89,8 +89,8 @@ const UsersTable = async ({
                         height={200}
                       />
                     ) : (
-                      <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
-                        <FiUser className="text-indigo-600 dark:text-indigo-300" />
+                      <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-yellow-900/50 flex items-center justify-center">
+                        <FiUser className="text-yellow-600 dark:text-yellow-300" />
                       </div>
                     )}
                   </div>

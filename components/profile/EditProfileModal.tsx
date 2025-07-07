@@ -49,7 +49,7 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg shadow transition-all hover:shadow-md"
+        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-countyGreen to-green-500 hover:from-green-600 hover:to-green-400 text-white rounded-lg shadow transition-all hover:shadow-md"
       >
         <FiUser className="text-lg" />
         <span>Edit Profile</span>
@@ -62,7 +62,7 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <FiUser className="text-indigo-500" />
+                    <FiUser className="text-yellow-500" />
                     <span>Edit Profile</span>
                   </h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -224,7 +224,7 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
                   <SubmitButton
                     isPending={isPending}
                     label="Update Profile"
-                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                    className="bg-gradient-to-r from-countyGreen to-green-500 hover:from-green-600 hover:to-green-400"
                   />
                 </div>
               </form>

@@ -72,7 +72,17 @@ export default async function SummarySection({
               </p>
             </div>
           </div>
-          <div className="mt-4 h-1 w-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full opacity-20"></div>
+          <div
+            className="
+    mt-4 h-1 w-full
+    bg-gradient-to-r
+      from-green-800
+      via-yellow-500
+      to-yellow-300
+    rounded-full
+    opacity-20
+  "
+          ></div>
         </div>
       ))}
     </div>

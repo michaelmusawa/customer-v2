@@ -16,7 +16,7 @@ export default async function SideNav() {
   return (
     <div className="flex h-full flex-col px-3 py-4 md:px-2">
       <Link
-        className="mb-4 flex h-20 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 p-4 shadow-lg md:h-28"
+        className="mb-4 flex h-20 items-center justify-center rounded-xl bg-gradient-to-r from-countyGreen to-green-500 hover:from-green-600 hover:to-green-400 p-4 shadow-lg md:h-28"
         href="/dashboard"
       >
         <div className="w-24 transition-transform duration-300 hover:scale-105">
@@ -52,7 +52,7 @@ export default async function SideNav() {
           {/* User info */}
           <div className="mt-4 hidden items-center gap-3 rounded-lg bg-gray-800 p-3 md:flex">
             {user?.image ? (
-              <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-indigo-500">
+              <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-yellow-500">
                 <Image
                   src={user.image}
                   alt={`${user.name}'s avatar`}

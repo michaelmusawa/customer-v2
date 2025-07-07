@@ -69,7 +69,7 @@ export default function GenerateTokenButton({ email }: Props) {
         className={`px-5 py-2.5 rounded-xl font-medium transition-all flex items-center justify-center w-full ${
           loading
             ? "bg-gray-300 cursor-not-allowed"
-            : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg"
+            : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md hover:shadow-lg"
         }`}
       >
         {loading ? (

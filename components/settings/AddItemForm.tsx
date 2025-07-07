@@ -78,7 +78,7 @@ AddItemFormProps) {
       <button
         type="submit"
         disabled={submitting}
-        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded transition disabled:opacity-50"
+        className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded transition disabled:opacity-50"
       >
         {submitting ? "Adding…" : `Add ${label}`}
       </button>

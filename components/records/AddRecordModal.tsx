@@ -140,11 +140,10 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
     <>
       <button
         onClick={open}
-        className={`flex items-center gap-2 px-4 py-2.5 text-white rounded-xl shadow-lg transition-all hover:shadow-xl ${
-          isEdit
-            ? "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
-            : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-        }`}
+        className={`flex items-center gap-2 px-4 py-2.5 text-white rounded-xl shadow-lg transition-all hover:shadow-xl 
+          
+            bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700
+        `}
       >
         {isEdit ? (
           <FiTag className="text-lg" />

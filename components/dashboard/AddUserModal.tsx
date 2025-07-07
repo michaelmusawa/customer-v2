@@ -97,11 +97,10 @@ export default function AddUserModal({
     <>
       <button
         onClick={open}
-        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg shadow transition-all hover:shadow-md ${
-          user
-            ? "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
-            : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
-        }`}
+        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg shadow transition-all hover:shadow-md
+          
+            bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white
+        `}
       >
         {user ? (
           <FiEdit2 className="text-lg" />
@@ -118,9 +117,9 @@ export default function AddUserModal({
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   {user ? (
-                    <FiEdit2 className="text-blue-500" />
+                    <FiEdit2 className="text-yellow-500" />
                   ) : (
-                    <FiPlus className="text-green-500" />
+                    <FiPlus className="text-yellow-500" />
                   )}
                   <span>{user ? "Edit User" : "Add New User"}</span>
                 </h2>
@@ -289,9 +288,7 @@ export default function AddUserModal({
                     isPending={isPending}
                     label={user ? "Update User" : "Create User"}
                     className={
-                      user
-                        ? "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
-                        : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                      "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                     }
                   />
                 </div>

@@ -112,7 +112,7 @@ const ExportRecordsButton = ({
         className={`flex items-center gap-2 px-4 py-2.5 rounded-lg shadow transition-all hover:shadow-md ${
           isLoading
             ? "bg-gray-400 cursor-not-allowed"
-            : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
+            : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
         }`}
       >
         {isLoading ? (

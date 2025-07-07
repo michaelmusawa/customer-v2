@@ -131,7 +131,7 @@ export default function EditRecordModal({
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <FiEdit className="text-indigo-500" />
+                  <FiEdit className="text-yellow-500" />
                   <span>Review Edit Request</span>
                 </h2>
                 <button

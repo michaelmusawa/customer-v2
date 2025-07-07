@@ -103,7 +103,7 @@ export default function NavLinks({ role }: { role?: string }) {
               className={clsx(
                 "group flex h-14 items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-300 md:justify-start bg-gray-50 dark:bg-gray-900",
                 {
-                  "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg":
+                  "bg-gradient-to-r from-countyGreen to-green-500 hover:from-green-600 hover:to-green-400 text-white shadow-lg":
                     isActive,
                   "text-gray-300 hover:bg-gray-800 hover:text-white": !isActive,
                 }
@@ -112,7 +112,7 @@ export default function NavLinks({ role }: { role?: string }) {
               <span
                 className={clsx({
                   "text-white": isActive,
-                  "text-indigo-400 group-hover:text-white": !isActive,
+                  "text-yellow-400 group-hover:text-white": !isActive,
                 })}
               >
                 {link.icon}

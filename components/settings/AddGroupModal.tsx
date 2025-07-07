@@ -76,7 +76,7 @@ export default function AddGroupModal({ type, label, station }: Props) {
     <>
       <button
         onClick={open}
-        className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg shadow hover:shadow-md transition-all duration-200 hover:from-blue-600 hover:to-indigo-700 active:scale-[0.98]"
+        className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg shadow hover:shadow-md transition-all duration-200 active:scale-[0.98]"
       >
         <FiPlus className="text-lg" /> Add {label}
       </button>
@@ -305,7 +305,7 @@ export default function AddGroupModal({ type, label, station }: Props) {
                   <SubmitButton
                     isPending={isPending}
                     label="Add"
-                    className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg shadow hover:shadow-md transition-all font-medium hover:from-blue-600 hover:to-indigo-700"
+                    className="px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg shadow hover:shadow-md transition-all font-medium"
                   />
                 </div>
               </form>

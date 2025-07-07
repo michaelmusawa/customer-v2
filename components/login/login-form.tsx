@@ -4,12 +4,12 @@
 import { useActionState } from "react";
 import { useState } from "react";
 import { authenticate } from "@/app/lib/loginActions";
-import ArrowRightIcon from "@/components/icons/arrowRight";
 import { poppins } from "@/public/fonts/fonts";
 import AtIcon from "@/components/icons/AtIcon";
 import KeyIcon from "@/components/icons/KeyIcon";
 import ExclamationCircleIcon from "@/components/icons/ExclamationIcon";
 import ForgotPasswordModal from "./ForgotPasswordModal";
+import SubmitButton from "../ui/SubmitButton";
 
 export default function LoginForm() {
   const [errorMessage, formAction, isPending] = useActionState(
@@ -88,33 +88,7 @@ export default function LoginForm() {
           </div>
         )}
 
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={isPending}
-          className="w-full flex items-center justify-center gap-2 py-2 rounded-2xl bg-gradient-to-r from-countyGreen to-green-500 hover:from-green-600 hover:to-green-400 text-white font-semibold shadow-md transition-all duration-300 disabled:opacity-50"
-        >
-          {isPending ? "Logging in..." : "Login"}
-          {isPending ? (
-            <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24">
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
-            </svg>
-          ) : (
-            <ArrowRightIcon className="w-5 h-5" />
-          )}
-        </button>
+        <SubmitButton isPending={isPending} label="Login" className="w-full" />
       </form>
 
       <div className="text-right mt-1">
