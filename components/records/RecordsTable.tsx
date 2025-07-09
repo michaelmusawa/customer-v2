@@ -3,6 +3,7 @@ import { fetchFilteredRecords } from "@/app/lib/recordsActions";
 import React from "react";
 import AddRecordModal from "./AddRecordModal";
 import { FiClipboard, FiEye } from "react-icons/fi";
+import EditTicketModal from "./EditTicketModal";
 
 const PAGE_SIZE = 10;
 
@@ -79,8 +80,13 @@ const RecordsTable = async ({
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                 {offset + i + 1}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 dark:text-blue-400">
-                {r.ticket}
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="flex items-center">
+                  <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                    {r.ticket}
+                  </span>
+                  {r.ticket === "T-DAEMON" && <EditTicketModal record={r} />}
+                </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -107,7 +113,10 @@ const RecordsTable = async ({
               {role === "biller" && (
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex justify-end space-x-2">
-                    <button className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                    <button
+                      className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      title="View details"
+                    >
                       <FiEye className="w-4 h-4" />
                     </button>
                     <AddRecordModal record={r} />

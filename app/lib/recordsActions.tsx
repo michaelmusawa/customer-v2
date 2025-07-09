@@ -728,3 +728,36 @@ export async function decideEditedRecord(
     return { state_error: "Server error, please try again." };
   }
 }
+
+/**
+ * Handles updating the ticket value for a given record.
+ */
+export async function updateTicket(
+  _: RecordActionState,
+  formData: FormData
+): Promise<RecordActionState> {
+  const id = formData.get("id");
+  const ticket = formData.get("ticket") as string;
+
+  // Validate inputs
+  if (!id || !ticket) {
+    return { state_error: "Ticket value is required.", errors: {} };
+  }
+
+  try {
+    await pool.query(
+      `UPDATE records
+       SET ticket = $1
+       WHERE id = $2`,
+      [ticket, id]
+    );
+
+    // Revalidate data on the relevant path
+    revalidatePath("/dashboard/records");
+
+    return { message: "Ticket updated successfully!" };
+  } catch (err) {
+    console.error("Failed to update ticket:", err);
+    return { state_error: "Update failed. Please try again.", errors: {} };
+  }
+}
