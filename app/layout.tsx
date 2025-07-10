@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-
 import "./globals.css";
 import { poppins } from "@/public/fonts/fonts";
 import AutoLogoutClient from "@/components/ui/AutoLogout";
+import Footer from "@/components/ui/footer";
 
 export const metadata: Metadata = {
   title: "Customer service app",
@@ -16,10 +16,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${poppins.variable} antialiased`}>
-        {" "}
+      <body
+        className={`${poppins.variable} antialiased flex flex-col min-h-screen`}
+      >
         <AutoLogoutClient />
-        {children}
+        <main className="flex-grow">{children}</main>
+
+        {/* Modern Footer */}
+        <Footer />
       </body>
     </html>
   );
