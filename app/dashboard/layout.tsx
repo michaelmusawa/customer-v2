@@ -1,4 +1,3 @@
-import Footer from "@/components/ui/footer";
 import SideNav from "@/components/ui/sidenav";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
