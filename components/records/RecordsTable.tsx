@@ -2,9 +2,10 @@
 import { fetchFilteredRecords } from "@/app/lib/recordsActions";
 import React from "react";
 import AddRecordModal from "./AddRecordModal";
-import { FiClipboard, FiEye, FiAlertCircle } from "react-icons/fi";
+import { FiClipboard, FiAlertCircle } from "react-icons/fi";
 import EditTicketModal from "./EditTicketModal";
 import { RecordRow } from "@/app/lib/definitions";
+import ViewRecordModal from "./ViewRecordModal";
 
 const PAGE_SIZE = 10;
 
@@ -31,8 +32,7 @@ const RecordsTable = async ({
 
   const offset = (currentPage - 1) * PAGE_SIZE;
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
@@ -65,11 +65,10 @@ const RecordsTable = async ({
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
               Date
             </th>
-            {role === "biller" && (
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Actions
-              </th>
-            )}
+
+            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
@@ -126,19 +125,25 @@ const RecordsTable = async ({
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                   {formatDate(r.createdAt)}
                 </td>
-                {role === "biller" && (
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end space-x-2">
+
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <div className="flex justify-end space-x-2">
+                    <ViewRecordModal record={r} />
+                    {r.hasEdits ? (
                       <button
-                        className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                        title="View details"
+                        className="flex p-2 text-gray-500 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
+                        title="Edit pending record"
                       >
-                        <FiEye className="w-4 h-4" />
+                        <span className="text-xs font-medium mr-1">
+                          Pending approval..
+                        </span>
+                        <FiAlertCircle className="w-4 h-4" />
                       </button>
-                      <AddRecordModal record={r} />
-                    </div>
-                  </td>
-                )}
+                    ) : (
+                      role === "biller" && <AddRecordModal record={r} />
+                    )}
+                  </div>
+                </td>
               </tr>
             );
           })}
