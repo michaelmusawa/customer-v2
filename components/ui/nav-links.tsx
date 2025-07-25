@@ -101,11 +101,11 @@ export default function NavLinks({ role }: { role?: string }) {
               href={link.href}
               {...extraProps} // add target/rel for external
               className={clsx(
-                "group flex h-14 items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-300 md:justify-start bg-gray-50 dark:bg-gray-900",
+                "group flex h-14 items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-300 md:justify-start bg-gray-100 dark:bg-gray-900",
                 {
-                  "bg-gradient-to-r from-countyGreen to-green-500 hover:from-green-600 hover:to-green-400 text-white shadow-lg":
+                  "bg-gradient-to-r from-green-300 to-green-700 hover:from-green-600 hover:to-green-400 text-white shadow-lg":
                     isActive,
-                  "text-gray-300 hover:bg-gray-800 hover:text-white": !isActive,
+                  "text-gray-500 hover:bg-gray-800 hover:text-white": !isActive,
                 }
               )}
             >

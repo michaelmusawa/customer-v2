@@ -39,7 +39,7 @@ export default async function SummarySection({
       darkColor: "dark:bg-amber-900/30 dark:text-amber-300",
     },
     {
-      label: "Error Rate (%)",
+      label: "Edit Requests (%)",
       value: `${errorRate.toFixed(1)}%`,
       icon: <FiAlertCircle className="text-xl" />,
       color: "bg-red-100 text-red-600",

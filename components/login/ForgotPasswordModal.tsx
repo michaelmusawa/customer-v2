@@ -40,8 +40,8 @@ export default function ForgotPasswordModal() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                    <FiKey className="text-blue-600 dark:text-blue-400 text-xl" />
+                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                    <FiKey className="text-green-600 dark:text-green-400 text-xl" />
                   </div>
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                     Reset Password
@@ -115,7 +115,6 @@ export default function ForgotPasswordModal() {
                   <SubmitButton
                     isPending={isPending}
                     label={isPending ? "Sending..." : "Reset Password"}
-                    className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
                   />
                 </div>
               </form>

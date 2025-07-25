@@ -16,7 +16,7 @@ export default async function SideNav() {
   return (
     <div className="flex h-full flex-col px-3 py-4 md:px-2">
       <Link
-        className="mb-4 flex h-20 items-center justify-center rounded-xl bg-gradient-to-r from-countyGreen to-green-500 hover:from-green-600 hover:to-green-400 p-4 shadow-lg md:h-28"
+        className="mb-4 flex h-20 items-center justify-center rounded-xl bg-gradient-to-r from-green-300 to-green-700 hover:from-green-600 hover:to-green-400 p-4 shadow-lg md:h-28"
         href="/dashboard"
       >
         <div className="w-24 transition-transform duration-300 hover:scale-105">
@@ -38,11 +38,11 @@ export default async function SideNav() {
           >
             <button
               type="submit"
-              className="group flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-gray-800 to-gray-900 p-3 text-sm font-medium transition-all duration-300 hover:from-red-600 hover:to-red-700 hover:shadow-lg"
+              className="group flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 p-3 text-sm font-medium transition-all duration-300 hover:from-red-600 hover:to-red-700 hover:shadow-lg"
             >
               <div className="flex items-center gap-2">
-                <SignOutIcon className="w-5 text-gray-300 group-hover:text-white group-hover:animate-pulse" />
-                <span className="hidden text-gray-200 group-hover:text-white md:block">
+                <SignOutIcon className="w-5 text-gray-600 group-hover:text-white group-hover:animate-pulse" />
+                <span className="hidden text-gray-600 group-hover:text-white md:block">
                   Sign Out
                 </span>
               </div>
@@ -50,7 +50,10 @@ export default async function SideNav() {
           </form>
 
           {/* User info */}
-          <div className="mt-4 hidden items-center gap-3 rounded-lg bg-gray-800 p-3 md:flex">
+          <Link
+            href={`/dashboard/${user?.role}/profile`}
+            className="mt-4 hidden items-center gap-3 rounded-lg bg-gray-800 p-3 md:flex"
+          >
             {user?.image ? (
               <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-yellow-500">
                 <Image
@@ -74,7 +77,7 @@ export default async function SideNav() {
                 {role?.toUpperCase() || "ROLE"}
               </p>
             </div>
-          </div>
+          </Link>
         </div>
       </div>
     </div>

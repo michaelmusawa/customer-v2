@@ -49,7 +49,7 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-countyGreen to-green-500 hover:from-green-600 hover:to-green-400 text-white rounded-lg shadow transition-all hover:shadow-md"
+        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-300 to-green-700 hover:from-green-600 hover:to-green-400 text-white rounded-lg shadow transition-all hover:shadow-md"
       >
         <FiUser className="text-lg" />
         <span>Edit Profile</span>
@@ -97,7 +97,7 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
                   <div className="space-y-1">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
                       <FiImage className="text-gray-500" />
-                      <span>Avatar</span>
+                      <span>Profile Image</span>
                     </label>
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -143,8 +143,9 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
                     <input
                       name="name"
                       defaultValue={user.name ?? ""}
-                      className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2.5 px-4 pl-10 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
-                      placeholder="John Doe"
+                      className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2.5 px-4 pl-10 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition cursor-not-allowed"
+                      placeholder="Alicia Kanini"
+                      disabled
                     />
                   </div>
                   {state.errors?.name && (
@@ -224,7 +225,7 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
                   <SubmitButton
                     isPending={isPending}
                     label="Update Profile"
-                    className="bg-gradient-to-r from-countyGreen to-green-500 hover:from-green-600 hover:to-green-400"
+                    className="bg-gradient-to-r from-green-300 to-green-700 hover:from-green-600 hover:to-green-400"
                   />
                 </div>
               </form>
