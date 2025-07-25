@@ -103,3 +103,18 @@ export interface DashboardSummary {
   totalServices: number;
   totalClients: number;
 }
+
+export interface RecordRow {
+  id: number;
+  ticket: string;
+  recordType: string | null;
+  name: string;
+  service: string;
+  subService: string | null;
+  recordNumber: string | null;
+  value: number;
+  counter: string;
+  shift: string;
+  createdAt: Date;
+  hasEdits: boolean; // true if at least one EditedRecord exists for this record
+}

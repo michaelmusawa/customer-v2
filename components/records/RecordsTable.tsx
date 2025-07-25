@@ -2,8 +2,9 @@
 import { fetchFilteredRecords } from "@/app/lib/recordsActions";
 import React from "react";
 import AddRecordModal from "./AddRecordModal";
-import { FiClipboard, FiEye } from "react-icons/fi";
+import { FiClipboard, FiEye, FiAlertCircle } from "react-icons/fi";
 import EditTicketModal from "./EditTicketModal";
+import { RecordRow } from "@/app/lib/definitions";
 
 const PAGE_SIZE = 10;
 
@@ -20,7 +21,7 @@ const RecordsTable = async ({
   currentPage: number;
   role: string;
 }) => {
-  const records = await fetchFilteredRecords(
+  const records: RecordRow[] = await fetchFilteredRecords(
     query,
     startDate,
     endDate,
@@ -30,7 +31,7 @@ const RecordsTable = async ({
 
   const offset = (currentPage - 1) * PAGE_SIZE;
 
-  const formatDate = (dateString: Date) => {
+  const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
       year: "numeric",
@@ -72,59 +73,75 @@ const RecordsTable = async ({
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
-          {records.map((r, i) => (
-            <tr
-              key={r.id}
-              className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30"
-            >
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                {offset + i + 1}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex items-center">
-                  <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                    {r.ticket}
-                  </span>
-                  {r.ticket === "T-DAEMON" && <EditTicketModal record={r} />}
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm font-medium text-gray-900 dark:text-white">
-                  {r.name}
-                </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {r.recordType}
-                </div>
-              </td>
-              <td className="px-6 py-4">
-                <div className="text-sm text-gray-900 dark:text-white font-medium">
-                  {r.service}
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  {r.subService}
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600 dark:text-green-400">
-                KES {r.value.toLocaleString()}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                {formatDate(r.createdAt)}
-              </td>
-              {role === "biller" && (
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex justify-end space-x-2">
-                    <button
-                      className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                      title="View details"
+          {records.map((r, i) => {
+            // Choose a special style for pending edits
+            const rowClass = r.hasEdits
+              ? "bg-yellow-50 dark:bg-yellow-900 border-l-4 border-yellow-400"
+              : "transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30";
+
+            return (
+              <tr key={r.id} className={rowClass}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                  {offset + i + 1}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center space-x-2">
+                    <span
+                      className={`text-sm font-medium ${
+                        r.hasEdits
+                          ? "text-yellow-600 dark:text-yellow-400"
+                          : "text-blue-600 dark:text-blue-400"
+                      }`}
                     >
-                      <FiEye className="w-4 h-4" />
-                    </button>
-                    <AddRecordModal record={r} />
+                      {r.ticket}
+                    </span>
+                    {r.hasEdits && (
+                      <FiAlertCircle
+                        title="Pending edit approval"
+                        className="w-4 h-4 text-yellow-500"
+                      />
+                    )}
+                    {r.ticket === "T-DAEMON" && <EditTicketModal record={r} />}
                   </div>
                 </td>
-              )}
-            </tr>
-          ))}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    {r.name}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {r.recordType}
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm text-gray-900 dark:text-white font-medium">
+                    {r.service}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    {r.subService}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600 dark:text-green-400">
+                  KES {r.value.toLocaleString()}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  {formatDate(r.createdAt)}
+                </td>
+                {role === "biller" && (
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex justify-end space-x-2">
+                      <button
+                        className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        title="View details"
+                      >
+                        <FiEye className="w-4 h-4" />
+                      </button>
+                      <AddRecordModal record={r} />
+                    </div>
+                  </td>
+                )}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 

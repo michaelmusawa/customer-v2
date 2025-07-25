@@ -5,23 +5,9 @@
 import { auth } from "@/auth";
 import { getUser } from "./loginActions";
 import pool from "./db";
-import { RecordActionState } from "./definitions";
+import { RecordActionState, RecordRow } from "./definitions";
 import { RecordInput, RecordSchema } from "./schemas";
 import { revalidatePath } from "next/cache";
-
-interface RecordRow {
-  id: number;
-  ticket: string;
-  recordType: string | null;
-  name: string;
-  service: string;
-  subService: string | null;
-  recordNumber: string | null;
-  value: number;
-  counter: string;
-  shift: string;
-  createdAt: Date;
-}
 
 /** Get total pages of records matching filters and role */
 export async function fetchRecordsPages(
@@ -124,11 +110,19 @@ export async function fetchFilteredRecords(
       r.value,
       c.name   AS counter,
       s.name   AS shift,
-      r."createdAt"
+      r."createdAt",
+
+      -- New column: true if at least one EditedRecord exists for this record
+      EXISTS(
+        SELECT 1
+        FROM "EditedRecord" er
+        WHERE er."recordId" = r.id
+      ) AS "hasEdits"
+
     FROM records r
-    JOIN "User" u ON r."userId"      = u.id
-    JOIN counters c ON u."counterId" = c.id
-    JOIN shifts   s ON u."shiftId"   = s.id
+    JOIN "User" u     ON r."userId" = u.id
+    JOIN counters c   ON u."counterId" = c.id
+    JOIN shifts   s   ON u."shiftId"   = s.id
   `;
 
   const where: string[] = [
@@ -193,7 +187,7 @@ export async function fetchFilteredRecords(
   }
 }
 
-interface RecordRow {
+interface EditRecordRow {
   id: number;
   ticket: string;
   recordType: string | null;
@@ -300,7 +294,7 @@ export async function fetchFilteredEditedRecords(
   endDate: string,
   role: string | null,
   currentPage: number
-): Promise<RecordRow[]> {
+): Promise<EditRecordRow[]> {
   const ITEMS_PER_PAGE = 10;
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
   const likeParam = `%${query}%`;
@@ -408,7 +402,7 @@ export async function fetchFilteredEditedRecords(
   `;
   params.push(ITEMS_PER_PAGE, offset);
 
-  const { rows } = await pool.query<RecordRow>(sql, params);
+  const { rows } = await pool.query<EditRecordRow>(sql, params);
   return rows;
 }
 
