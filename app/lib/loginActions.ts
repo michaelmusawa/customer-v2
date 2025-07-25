@@ -5,7 +5,7 @@ import { AuthError } from "next-auth";
 
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
-import pool from "./db";
+import pool, { DatabaseError, safeQuery } from "./db";
 import {
   ForgotPasswordActionState,
   ResetPasswordActionState,
@@ -32,7 +32,7 @@ export interface User {
 
 export async function getUser(email: string): Promise<User | undefined> {
   try {
-    const user = await pool.query<User>(
+    const user = await safeQuery<User>(
       `SELECT
        u.id,
        u.name,
@@ -60,8 +60,12 @@ export async function getUser(email: string): Promise<User | undefined> {
     );
     return user.rows[0];
   } catch (error) {
+    if (error instanceof DatabaseError) {
+      // re‑throw so the caller knows “DB is down”
+      throw error;
+    }
     console.error("Failed to fetch user:", error);
-    throw new Error("Failed to fetch user.");
+    throw error; // rethrow unexpected errors
   }
 }
 
@@ -70,23 +74,42 @@ export async function authenticate(_currentState: unknown, formData: FormData) {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
+    // 1) Try to fetch the user
+    let user;
+    try {
+      user = await getUser(email);
+    } catch (err) {
+      if (err instanceof DatabaseError) {
+        // Surface this to the UI as errorMessage
+        return "Our authentication service is temporarily unavailable. Please try again later.";
+      }
+      throw err;
+    }
+
+    // 2) If user not found, or password mismatch, fall through to credentials‑fail
+    if (!user) {
+      return "Invalid credentials.";
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+    if (match) {
+      return "Invalid credentials.";
+    }
+
+    // 3) Success!
     const res = await signIn("credentials", {
       email,
       password,
       redirect: false,
     });
-
     if (!res.error) {
       redirect("/dashboard");
     }
   } catch (error) {
     if (error instanceof AuthError) {
-      switch (error.type) {
-        case "CredentialsSignin":
-          return "Invalid credentials.";
-        default:
-          return "Something went wrong.";
-      }
+      return error.type === "CredentialsSignin"
+        ? "Invalid credentials."
+        : "Something went wrong.";
     }
     throw error;
   }
