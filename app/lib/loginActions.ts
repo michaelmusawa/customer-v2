@@ -28,6 +28,7 @@ export interface User {
   image?: string;
   name?: string;
   createdAt?: Date;
+  status?: string;
 }
 
 export async function getUser(email: string): Promise<User | undefined> {
@@ -44,6 +45,7 @@ export async function getUser(email: string): Promise<User | undefined> {
        u."counterId",
        u.image,
        u."createdAt",
+       u.status,
        st.name AS station,
        sh.name AS shift,
         c.name AS counter
@@ -94,6 +96,8 @@ export async function authenticate(_currentState: unknown, formData: FormData) {
     const match = await bcrypt.compare(password, user.password);
     if (match) {
       return "Invalid credentials.";
+    } else if (user.status === "archived") {
+      return "Your account is disabled! Contact you supervisor for activation";
     }
 
     // 3) Success!

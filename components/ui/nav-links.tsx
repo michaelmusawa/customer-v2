@@ -39,7 +39,7 @@ export default function NavLinks({ role }: { role?: string }) {
       role: ["biller", "supervisor", "coordinator"],
     },
     {
-      name: "Coordinators",
+      name: "Directors",
       href: `/dashboard/${role}/coordinators`,
       icon: <FiUsers className="text-lg" />,
       role: ["admin"],

@@ -93,6 +93,16 @@ export default function AddUserModal({
     setCounters([]);
   };
 
+  let title;
+
+  if (role === "coordinator") {
+    title = "Director";
+  } else if (role === "supervisor") {
+    title = "Supervisor";
+  } else if (role === "biller") {
+    title = "Biller";
+  }
+
   return (
     <>
       <button
@@ -107,7 +117,7 @@ export default function AddUserModal({
         ) : (
           <FiPlus className="text-lg" />
         )}
-        <span>{user ? "Edit User" : "Add User"}</span>
+        <span>{user ? `Edit ${title}` : `Add ${title}`}</span>
       </button>
 
       {isOpen && (
@@ -121,7 +131,7 @@ export default function AddUserModal({
                   ) : (
                     <FiPlus className="text-yellow-500" />
                   )}
-                  <span>{user ? "Edit User" : "Add New User"}</span>
+                  <span>{user ? `Edit ${title}` : `Add ${title}`}</span>
                 </h2>
                 <button
                   onClick={close}
