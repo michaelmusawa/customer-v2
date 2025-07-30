@@ -99,7 +99,7 @@ const UsersTable = async ({
                       {user.name}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {user.role}
+                      {user.role === "coordinator" ? "Director" : user.role}
                     </div>
                   </div>
                 </div>

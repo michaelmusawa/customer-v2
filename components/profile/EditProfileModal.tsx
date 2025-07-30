@@ -91,6 +91,7 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
 
               <form action={formAction} className="space-y-5">
                 <input type="hidden" name="id" value={user.id} />
+                <input type="hidden" name="name" value={user.name} />
 
                 {/* --- only when editing: avatar picker + preview --- */}
                 {user && (
@@ -168,6 +169,7 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
                         type={showPassword ? "text" : "password"}
                         placeholder="Leave blank to keep current"
                         className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2.5 px-4 pl-10 pr-10 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
+                        minLength={6}
                       />
                       <button
                         type="button"
@@ -195,6 +197,7 @@ export default function EditProfileModal({ user }: EditProfileModalProps) {
                         type={showConfirmPassword ? "text" : "password"}
                         placeholder="Re‑enter new password"
                         className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2.5 px-4 pl-10 pr-10 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
+                        minLength={6}
                       />
                       <button
                         type="button"

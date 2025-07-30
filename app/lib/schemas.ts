@@ -61,7 +61,7 @@ export const UpdateSchema = z
       .optional(),
     password: z
       .string()
-      .min(8, "Password must be at least 8 characters")
+      .min(6, "Password must be at least 6 characters")
       .optional()
       .or(z.literal("")),
     confirmPassword: z.string().optional().or(z.literal("")),

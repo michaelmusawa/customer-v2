@@ -116,6 +116,19 @@ export async function addUser(
     const token = randomBytes(32).toString("hex");
     const expires = new Date(Date.now() + 24 * 3600 * 1000); // 24h
 
+    // 5. Send email
+    const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password?token=${token}`;
+
+    /// Needs a big refactor for error handling
+    const sendResetUrl = await sendMail(resetUrl, email, name);
+
+    if (sendResetUrl === "Failed") {
+      return {
+        state_error:
+          "Error validating the email. Check your internet connection or the email is not valid!",
+      };
+    }
+
     // 4. Insert new user
     const insertRes = await pool.query<{ id: number }>(
       `INSERT INTO "User" 
@@ -127,10 +140,6 @@ export async function addUser(
     );
 
     const newUserId = insertRes.rows[0].id;
-
-    // 5. Send email
-    const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password?token=${token}`;
-    await sendMail(resetUrl, email, name);
 
     // 6. Revalidate dashboard
     revalidatePath("/dashboard");

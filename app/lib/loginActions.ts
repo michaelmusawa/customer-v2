@@ -269,5 +269,6 @@ export async function sendMail(resetUrl: string, email: string, name?: string) {
     console.log("Email sent.");
   } catch (error) {
     console.error("Failed to send email:", error);
+    return "Failed";
   }
 }
