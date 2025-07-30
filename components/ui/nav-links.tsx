@@ -56,6 +56,7 @@ export default function NavLinks({ role }: { role?: string }) {
       icon: <FiUsers className="text-lg" />,
       role: ["supervisor"],
     },
+    
     {
       name: "Settings",
       href: `/dashboard/${role}/settings`,

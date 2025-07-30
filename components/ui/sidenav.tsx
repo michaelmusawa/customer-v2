@@ -74,7 +74,9 @@ export default async function SideNav() {
                 {user?.name || "User"}
               </p>
               <p className="truncate text-xs text-gray-400">
-                {role?.toUpperCase() || "ROLE"}
+                {role === "coordinator"
+                  ? "DIRECTOR"
+                  : role?.toUpperCase() || "ROLE"}
               </p>
             </div>
           </Link>

@@ -54,8 +54,16 @@ export async function POST(req: NextRequest) {
       400
     );
   }
-  const { ticket, recordType, name, service, subService, recordNumber, value } =
-    parsed.data as ExternalRecord;
+  const {
+    ticket,
+    recordType,
+    name,
+    service,
+    subService,
+    recordNumber,
+    value,
+    date,
+  } = parsed.data as ExternalRecord;
 
   try {
     // 3. Fetch user id and stored token hash
@@ -91,18 +99,22 @@ export async function POST(req: NextRequest) {
            "subService",
            "recordNumber",
            value,
+           "createdAt",
            "userId"
          )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       VALUES
+         ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING id`,
       [
         ticket,
         recordType ?? null,
-        name,
-        service,
+        name ?? null,
+        service ?? null,
         subService ?? null,
         recordNumber ?? null,
         value,
+        // pass a JS Date instance for createdAt:
+        date ? new Date(date) : new Date(),
         userId,
       ]
     );

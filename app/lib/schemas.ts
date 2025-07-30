@@ -141,6 +141,7 @@ export const ExternalRecordSchema = z.preprocess(
     service: z.string().nonempty(),
     subService: z.string().optional(),
     recordNumber: z.string().optional(),
+    date: z.string().optional(),
     value: z.preprocess(
       (val) =>
         typeof val === "string" ? parseFloat(val.replace(/,/g, "")) : val,
