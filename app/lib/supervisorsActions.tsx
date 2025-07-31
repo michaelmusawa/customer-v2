@@ -1,9 +1,24 @@
+// app/lib/userActions.ts
 "use server";
 
 import { auth } from "@/auth";
-import pool from "./db";
-import type { User } from "./definitions";
 import { getUser } from "./loginActions";
+import { safeQuery } from "./db";
+import type { User } from "./definitions";
+
+const ITEMS_PER_PAGE = 10;
+
+async function injectSupervisorFilter(
+  params: Record<string, unknown>
+): Promise<void> {
+  const session = await auth();
+  const email = session?.user?.email;
+  if (!email) return;
+  const me = await getUser(email);
+  if (me?.role === "supervisor" && me.stationId) {
+    params.stationId = me.stationId;
+  }
+}
 
 /**
  * Fetch the total number of pages of users matching the filters.
@@ -13,77 +28,53 @@ export async function fetchUsersPages(
   startDate: string,
   endDate: string,
   role: string | null,
-  showArchived: boolean = false // Add this parameter
+  showArchived: boolean = false
 ): Promise<number> {
-  const ITEMS_PER_PAGE = 10;
-  const likeParam = `%${query}%`;
-  const params: Array<string> = [likeParam];
+  const params: Record<string, unknown> = {
+    queryParam: `%${query}%`,
+    startDate,
+    endDate,
+    showArchived,
+  };
+  await injectSupervisorFilter(params);
 
-  let countSql = `
-    SELECT COUNT(*) AS total
-    FROM "User" u
-      LEFT JOIN shifts    s ON u."shiftId"   = s.id
-      LEFT JOIN stations st ON u."stationId" = st.id
-      LEFT JOIN counters c ON u."counterId" = c.id
-    WHERE (
-      u.name   ILIKE $1 OR
-      u.email  ILIKE $1 OR
-      s.name   ILIKE $1 OR
-      st.name  ILIKE $1 OR
-      c.name   ILIKE $1
-    )
-  `;
+  const statusFilter = showArchived
+    ? "u.status = 'archived'"
+    : "(u.status IS NULL OR u.status = '')";
 
-  // Archived filter
-  if (showArchived) {
-    countSql += ` AND u.status = 'archived'`;
-  } else {
-    countSql += ` AND (u.status IS NULL OR u.status = '')`;
-  }
+  let whereClauses = [
+    `(
+      u.name LIKE @queryParam OR
+      u.email LIKE @queryParam
+    )`,
+    statusFilter,
+  ];
 
-  // Date filtering
-  if (startDate && endDate) {
-    countSql += ` AND u."createdAt" BETWEEN $${params.length + 1} AND $${
-      params.length + 2
-    }`;
-    params.push(startDate, endDate);
-  } else if (startDate) {
-    countSql += ` AND u."createdAt" >= $${params.length + 1}`;
-    params.push(startDate);
-  } else if (endDate) {
-    countSql += ` AND u."createdAt" <= $${params.length + 1}`;
-    params.push(endDate);
-  }
-
-  // Get the current user's role and station
-  // This is necessary to apply role-based filtering
-  // and to ensure supervisors only see users from their station
-
-  const session = await auth();
-  const userEmail = session?.user?.email || "";
-  const user = await getUser(userEmail);
-  const userRole = user?.role || "";
-
-  if (userRole === "supervisor") {
-    if (user) {
-      countSql += ` AND u."stationId" = $${params.length + 1}`;
-      params.push(`${user.stationId}`);
-    }
-  }
-
-  // Role filtering
+  if (startDate && endDate)
+    whereClauses.push("u.createdAt BETWEEN @startDate AND @endDate");
   if (role) {
-    countSql += ` AND u.role = $${params.length + 1}`;
-    params.push(role);
+    whereClauses.push("u.role = @role");
+    params.role = role;
+  }
+  if (params.stationId) {
+    whereClauses.push("u.stationId = @stationId");
   }
 
-  const countRes = await pool.query(countSql, params);
-  const total = parseInt(countRes.rows[0].total, 10);
+  const sql = `
+    SELECT COUNT(*) AS total
+    FROM [User] u
+    LEFT JOIN shifts s ON u.shiftId = s.id
+    LEFT JOIN stations st ON u.stationId = st.id
+    LEFT JOIN counters c ON u.counterId = c.id
+    WHERE ${whereClauses.join(" AND ")}
+  `;
+  const { recordset } = await safeQuery<{ total: number }>(sql, params);
+  const total = recordset[0]?.total ?? 0;
   return Math.ceil(total / ITEMS_PER_PAGE);
 }
 
 /**
- * Fetch a page of users matching the filters, including their shift/station/counter names.
+ * Fetch a page of users matching the filters.
  */
 export async function fetchFilteredUsers(
   query: string,
@@ -91,14 +82,39 @@ export async function fetchFilteredUsers(
   endDate: string,
   role: string | null,
   currentPage: number,
-  showArchived: boolean = false // Add this parameter
+  showArchived: boolean = false
 ): Promise<User[]> {
-  const ITEMS_PER_PAGE = 10;
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
-  const likeParam = `%${query}%`;
-  const params: Array<string | number> = [likeParam];
+  const params: Record<string, unknown> = {
+    queryParam: `%${query}%`,
+    startDate,
+    endDate,
+    showArchived,
+    limit: ITEMS_PER_PAGE,
+    offset,
+  };
+  await injectSupervisorFilter(params);
 
-  let sql = `
+  const statusFilter = showArchived
+    ? "u.status = 'archived'"
+    : "(u.status IS NULL OR u.status = '')";
+
+  let whereClauses = [
+    `(
+      u.name LIKE @queryParam OR
+      u.email LIKE @queryParam
+    )`,
+    statusFilter,
+  ];
+
+  if (startDate && endDate)
+    whereClauses.push("u.createdAt BETWEEN @startDate AND @endDate");
+  if (role) {
+    whereClauses.push("u.role = @role");
+  }
+  if (params.stationId) whereClauses.push("u.stationId = @stationId");
+
+  const sql = `
     SELECT
       u.id,
       u.name,
@@ -106,74 +122,19 @@ export async function fetchFilteredUsers(
       u.role,
       u.status,
       u.image,
-      s.name   AS shift,
-      st.name  AS station,
-      c.name   AS counter,
-      u."createdAt"
-    FROM "User" u
-      LEFT JOIN shifts    s ON u."shiftId"   = s.id
-      LEFT JOIN stations st ON u."stationId" = st.id
-      LEFT JOIN counters c ON u."counterId" = c.id
-    WHERE (
-      u.name   ILIKE $1 OR
-      u.email  ILIKE $1 OR
-      s.name   ILIKE $1 OR
-      st.name  ILIKE $1 OR
-      c.name   ILIKE $1
-    )
+      s.name AS shift,
+      st.name AS station,
+      c.name AS counter,
+      u.createdAt
+    FROM [User] u
+    LEFT JOIN shifts s ON u.shiftId = s.id
+    LEFT JOIN stations st ON u.stationId = st.id
+    LEFT JOIN counters c ON u.counterId = c.id
+    WHERE ${whereClauses.join(" AND ")}
+    ORDER BY u.createdAt ASC
+    OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;
   `;
 
-  // Archived filter
-  if (showArchived) {
-    sql += ` AND u.status = 'archived'`;
-  } else {
-    sql += ` AND (u.status IS NULL OR u.status = '')`;
-  }
-
-  // Date filtering
-  if (startDate && endDate) {
-    sql += ` AND u."createdAt" BETWEEN $${params.length + 1} AND $${
-      params.length + 2
-    }`;
-    params.push(startDate, endDate);
-  } else if (startDate) {
-    sql += ` AND u."createdAt" >= $${params.length + 1}`;
-    params.push(startDate);
-  } else if (endDate) {
-    sql += ` AND u."createdAt" <= $${params.length + 1}`;
-    params.push(endDate);
-  }
-
-  // Role filtering
-  if (role) {
-    sql += ` AND u.role = $${params.length + 1}`;
-    params.push(role);
-  }
-
-  // Get the current user's role and station
-  // This is necessary to apply role-based filtering
-  // and to ensure supervisors only see users from their station
-
-  const session = await auth();
-  const userEmail = session?.user?.email || "";
-  const user = await getUser(userEmail);
-  const userRole = user?.role || "";
-
-  if (userRole === "supervisor") {
-    if (user) {
-      sql += ` AND u."stationId" = $${params.length + 1}`;
-      params.push(`${user.stationId}`);
-    }
-  }
-
-  // Ordering, pagination
-  sql += `
-    ORDER BY u."createdAt" ASC
-    LIMIT $${params.length + 1}
-    OFFSET $${params.length + 2}
-  `;
-  params.push(ITEMS_PER_PAGE, offset);
-
-  const result = await pool.query<User>(sql, params);
-  return result.rows;
+  const { recordset } = await safeQuery<User>(sql, params);
+  return recordset;
 }

@@ -1,16 +1,10 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlserver"
   url      = env("DATABASE_URL")
 }
 
@@ -23,24 +17,24 @@ model User {
   role                   String?
   status                 String?
   image                  String?
-  token                   String?
-  shiftId           Int?             
-  shift             Shift?           @relation(fields: [shiftId], references: [id])
-  
-  counterId         Int?             
-  counter           Counter?         @relation(fields: [counterId], references: [id])
-  
-  stationId         Int?             
-  station           Station?         @relation(fields: [stationId], references: [id])
-  records                Record[]
-  editRecordsAsBiller EditedRecord[] @relation("BillerRelation")
+  token                  String?    // invitation/reset token
+  shiftId                Int?
+  shift     Shift?   @relation(fields: [shiftId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  counterId              Int?
+  counter   Counter? @relation(fields: [counterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  stationId              Int?
+  station   Station? @relation(fields: [stationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  records                Record[]   @relation("RecordUser")
+  editRecordsAsBiller    EditedRecord[] @relation("BillerRelation")
   editRecordsAsSupervisor EditedRecord[] @relation("SupervisorRelation")
   accounts               Account[]
-  sessions               Session[] 
-  resetToken    String?     @map("password_reset_token")
-  resetExpires  DateTime?   @map("password_reset_expires")
+  sessions               Session[]
+  resetToken             String?    @map("password_reset_token")
+  resetExpires           DateTime?  @map("password_reset_expires")
   createdAt              DateTime   @default(now())
   updatedAt              DateTime?  @updatedAt
+
+  @@map("User")
 }
 
 model Record {
@@ -53,7 +47,7 @@ model Record {
   recordNumber String?
   value        Int
   userId       Int
-  user         User          @relation(fields: [userId], references: [id], onDelete: NoAction)
+  user         User          @relation("RecordUser", fields: [userId], references: [id], onDelete: NoAction)
   editRecords  EditedRecord[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime?     @updatedAt
@@ -61,28 +55,28 @@ model Record {
   @@map("records")
 }
 
-
 model EditedRecord {
-   id            Int      @id @default(autoincrement())
-  recordId          Int
-  record            Record   @relation(fields: [recordId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  ticket            String
-  recordType        String?
-  name              String
-  service           String
-  subService        String?
-  recordNumber      String
-  value             Int
-  reason            String?
-  comment           String?
-  status            String?
-  billerId          Int
-  supervisorId      Int?
-  biller            User     @relation("BillerRelation", fields: [billerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  supervisor        User?    @relation("SupervisorRelation", fields: [supervisorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime? @updatedAt
-  
+  id            Int      @id @default(autoincrement())
+  recordId      Int
+  record        Record   @relation(fields: [recordId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ticket        String
+  recordType    String?
+  name          String
+  service       String
+  subService    String?
+  recordNumber  String
+  value         Int
+  reason        String?
+  comment       String?
+  status        String?
+  billerId      Int
+  supervisorId  Int?
+  biller        User     @relation("BillerRelation", fields: [billerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  supervisor    User?    @relation("SupervisorRelation", fields: [supervisorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime? @updatedAt
+
+  @@map("EditedRecord")
 }
 
 model Account {
@@ -104,16 +98,19 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([provider, providerAccountId])
+  @@map("Account")
 }
 
 model Session {
   sessionToken String   @unique
   userId       Int
   expires      DateTime
-  user         User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user         User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@map("Session")
 }
 
 model VerificationToken {
@@ -122,75 +119,60 @@ model VerificationToken {
   expires    DateTime
 
   @@id([identifier, token])
+  @@map("VerificationToken")
 }
 
 model Station {
-  id        Int     @id @default(autoincrement())
-  name      String  @unique
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
   createdAt DateTime @default(now()) @map("created_at")
-
-  // add this:
-  shifts    Shift[] 
-
-  users     User[]  // existing back‑relation
+  shifts    Shift[]
+  users     User[]
 
   @@map("stations")
 }
 
 model Shift {
   id         Int      @id @default(autoincrement())
-  name       String   
+  name       String
   createdAt  DateTime @default(now()) @map("created_at")
-
-  // NEW: each shift belongs to exactly one station
   stationId  Int
   station    Station  @relation(fields: [stationId], references: [id])
-
-  // NEW: each shift can have many counters
   counters   Counter[]
-
-  users      User[]   // existing back‑relation
+  users      User[]
 
   @@unique([stationId, name])
-
   @@map("shifts")
 }
 
 model Counter {
   id         Int      @id @default(autoincrement())
-  name       String   
+  name       String
   createdAt  DateTime @default(now()) @map("created_at")
-
-  // NEW: each counter belongs to exactly one shift
   shiftId    Int
   shift      Shift    @relation(fields: [shiftId], references: [id])
-
-  users      User[]   // existing back‑relation
+  users      User[]
 
   @@unique([shiftId, name])
-
   @@map("counters")
 }
 
-
 model Service {
-  id         Int           @id @default(autoincrement())
-  name       String        @unique
-  createdAt  DateTime      @default(now()) @map("created_at")
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  createdAt   DateTime     @default(now()) @map("created_at")
   subservices Subservice[]
 
   @@map("services")
 }
 
 model Subservice {
-  id          Int       @id @default(autoincrement())
-  serviceId   Int       @map("service_id")
-  service     Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  name        String
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id         Int       @id @default(autoincrement())
+  serviceId  Int       @map("service_id")
+  service    Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  name       String
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   @@unique([serviceId, name])
   @@map("subservices")
 }
-
-
