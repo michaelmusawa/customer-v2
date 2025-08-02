@@ -42,7 +42,7 @@ export async function fetchUsersPages(
     ? "u.status = 'archived'"
     : "(u.status IS NULL OR u.status = '')";
 
-  let whereClauses = [
+  const whereClauses = [
     `(
       u.name LIKE @queryParam OR
       u.email LIKE @queryParam
@@ -50,8 +50,9 @@ export async function fetchUsersPages(
     statusFilter,
   ];
 
-  if (startDate && endDate)
+  if (startDate && endDate) {
     whereClauses.push("u.createdAt BETWEEN @startDate AND @endDate");
+  }
   if (role) {
     whereClauses.push("u.role = @role");
     params.role = role;
@@ -99,7 +100,7 @@ export async function fetchFilteredUsers(
     ? "u.status = 'archived'"
     : "(u.status IS NULL OR u.status = '')";
 
-  let whereClauses = [
+  const whereClauses = [
     `(
       u.name LIKE @queryParam OR
       u.email LIKE @queryParam
@@ -107,12 +108,15 @@ export async function fetchFilteredUsers(
     statusFilter,
   ];
 
-  if (startDate && endDate)
+  if (startDate && endDate) {
     whereClauses.push("u.createdAt BETWEEN @startDate AND @endDate");
+  }
   if (role) {
     whereClauses.push("u.role = @role");
   }
-  if (params.stationId) whereClauses.push("u.stationId = @stationId");
+  if (params.stationId) {
+    whereClauses.push("u.stationId = @stationId");
+  }
 
   const sql = `
     SELECT
@@ -132,7 +136,8 @@ export async function fetchFilteredUsers(
     LEFT JOIN counters c ON u.counterId = c.id
     WHERE ${whereClauses.join(" AND ")}
     ORDER BY u.createdAt ASC
-    OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;
+    OFFSET @offset ROWS
+    FETCH NEXT @limit ROWS ONLY
   `;
 
   const { recordset } = await safeQuery<User>(sql, params);

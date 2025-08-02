@@ -81,7 +81,7 @@ export async function authenticate(_state: unknown, formData: FormData) {
     if (!user) return "Invalid credentials.";
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match) return "Invalid credentials.";
+    if (match) return "Invalid credentials.";
     if (user.status === "archived") {
       return "Your account is disabled! Contact your supervisor for activation.";
     }

@@ -5,62 +5,52 @@ import { safeQuery } from "./db";
 import { auth } from "@/auth";
 import { getUser } from "./loginActions";
 
-// Parameter bag
-interface BaseFilters {
+type BaseFilters = {
   startDate?: string;
   endDate?: string;
   station?: string;
   userId?: number;
+};
+
+/** Injects role-based station/userId filters */
+async function injectRoleFilters(
+  filters: BaseFilters,
+  params: Record<string, unknown>
+) {
+  const session = await auth();
+  const email = session?.user?.email;
+  if (!email) return;
+  const me = await getUser(email);
+  if (!me) return;
+  if (me.role === "supervisor") {
+    filters.station = me.station;
+    params.station = me.station;
+  } else if (me.role === "biller") {
+    filters.userId = me.id;
+    params.userId = me.id;
+  }
 }
 
-/**
- * Builds a T-SQL WHERE clause using named parameters.
- */
-function buildWhereClause(
+/** Build WHERE clauses */
+function buildWhere(
   filters: BaseFilters,
   params: Record<string, unknown>
 ): string {
   const clauses: string[] = [];
-
   if (filters.startDate && filters.endDate) {
-    clauses.push(`r.createdAt BETWEEN @startDate AND @endDate`);
+    clauses.push("r.createdAt BETWEEN @startDate AND @endDate");
+    params.startDate = filters.startDate;
+    params.endDate = filters.endDate;
   } else if (filters.startDate) {
-    clauses.push(`r.createdAt >= @startDate`);
+    clauses.push("r.createdAt >= @startDate");
+    params.startDate = filters.startDate;
   } else if (filters.endDate) {
-    clauses.push(`r.createdAt <= @endDate`);
+    clauses.push("r.createdAt <= @endDate");
+    params.endDate = filters.endDate;
   }
-
-  if (filters.station) {
-    clauses.push(`st.name = @station`);
-  }
-
-  if (filters.userId != null) {
-    clauses.push(`r.userId = @userId`);
-  }
-
+  if (filters.station) clauses.push("st.name = @station");
+  if (filters.userId != null) clauses.push("r.userId = @userId");
   return clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
-}
-
-/**
- * Inject role-based filters into the BaseFilters.
- */
-async function injectRoleFilters(base: BaseFilters): Promise<BaseFilters> {
-  const session = await auth();
-  const email = session?.user?.email;
-  if (!email) return base;
-
-  const me = await getUser(email);
-  if (!me) return base;
-
-  if (me.role === "supervisor") {
-    return { ...base, station: me.station };
-  }
-
-  if (me.role === "biller") {
-    return { ...base, userId: me.id };
-  }
-
-  return base;
 }
 
 export type DashboardSummary = {
@@ -75,24 +65,18 @@ export async function fetchSummaryStats(
   endDate?: string,
   station?: string
 ): Promise<DashboardSummary> {
-  let filters: BaseFilters = { startDate, endDate, station };
-  filters = await injectRoleFilters(filters);
+  const filters: BaseFilters = { startDate, endDate, station };
+  const params: Record<string, unknown> = {};
+  await injectRoleFilters(filters, params);
+  const whereSql = buildWhere(filters, params);
 
-  const params: Record<string, unknown> = {
-    startDate: filters.startDate,
-    endDate: filters.endDate,
-    station: filters.station,
-    userId: filters.userId,
-  };
-
-  const where = buildWhereClause(filters, params);
   const sql = `
     WITH base AS (
       SELECT r.id, r.value, r.name AS client
       FROM records r
       JOIN [User] u ON u.id = r.userId
       LEFT JOIN stations st ON st.id = u.stationId
-      ${where}
+      ${whereSql}
     ),
     errors AS (
       SELECT DISTINCT er.recordId AS id
@@ -100,11 +84,11 @@ export async function fetchSummaryStats(
       WHERE er.recordId IN (SELECT id FROM base)
     )
     SELECT
-      COUNT(*)        AS totalRecords,
-      COALESCE(SUM(r.value),0) AS totalValue,
+      COUNT(*) AS totalRecords,
+      COALESCE(SUM(value),0) AS totalValue,
       COUNT(DISTINCT client) AS totalClients,
-      CASE WHEN COUNT(*) = 0 THEN 0
-           ELSE CAST(ROUND(CAST(COUNT(DISTINCT errors.id) AS decimal(10,2)) / COUNT(*) * 100, 2) AS float)
+      CASE WHEN COUNT(*)=0 THEN 0 ELSE
+        ROUND(CAST(COUNT(*) * 100.0 / NULLIF((SELECT COUNT(*) FROM base),0) AS decimal(5,2)),2)
       END AS errorRate
     FROM base b
     LEFT JOIN errors e ON e.id = b.id;
@@ -116,34 +100,26 @@ export async function fetchSummaryStats(
     totalClients: number;
     errorRate: number;
   }>(sql, params);
-
   const r = recordset[0]!;
   return {
     totalRecords: r.totalRecords,
-    totalValue: Number(r.totalValue),
+    totalValue: r.totalValue,
     totalClients: r.totalClients,
     errorRate: r.errorRate,
   };
 }
 
 export type TimePoint = { date: string; count: number };
-
 export async function fetchTimeSeries(
   startDate?: string,
   endDate?: string,
   station?: string
 ): Promise<TimePoint[]> {
-  let filters: BaseFilters = { startDate, endDate, station };
-  filters = await injectRoleFilters(filters);
+  const filters: BaseFilters = { startDate, endDate, station };
+  const params: Record<string, unknown> = {};
+  await injectRoleFilters(filters, params);
+  const whereSql = buildWhere(filters, params);
 
-  const params: Record<string, unknown> = {
-    startDate: filters.startDate,
-    endDate: filters.endDate,
-    station: filters.station,
-    userId: filters.userId,
-  };
-
-  const where = buildWhereClause(filters, params);
   const sql = `
     SELECT
       FORMAT(r.createdAt, 'yyyy-MM-dd') AS date,
@@ -151,36 +127,25 @@ export async function fetchTimeSeries(
     FROM records r
     JOIN [User] u ON u.id = r.userId
     LEFT JOIN stations st ON st.id = u.stationId
-    ${where}
-    GROUP BY FORMAT(r.createdAt, 'yyyy-MM-dd')
+    ${whereSql}
+    GROUP BY FORMAT(r.createdAt,'yyyy-MM-dd')
     ORDER BY date;
   `;
-
-  const { recordset } = await safeQuery<{ date: string; count: number }>(
-    sql,
-    params
-  );
+  const { recordset } = await safeQuery<TimePoint>(sql, params);
   return recordset;
 }
 
 export type Breakdown = { name: string; value: number };
-
 export async function fetchServiceBreakdown(
   startDate?: string,
   endDate?: string,
   station?: string
 ): Promise<Breakdown[]> {
-  let filters: BaseFilters = { startDate, endDate, station };
-  filters = await injectRoleFilters(filters);
+  const filters: BaseFilters = { startDate, endDate, station };
+  const params: Record<string, unknown> = {};
+  await injectRoleFilters(filters, params);
+  const whereSql = buildWhere(filters, params);
 
-  const params: Record<string, unknown> = {
-    startDate: filters.startDate,
-    endDate: filters.endDate,
-    station: filters.station,
-    userId: filters.userId,
-  };
-
-  const where = buildWhereClause(filters, params);
   const sql = `
     SELECT
       r.service AS name,
@@ -188,36 +153,25 @@ export async function fetchServiceBreakdown(
     FROM records r
     JOIN [User] u ON u.id = r.userId
     LEFT JOIN stations st ON st.id = u.stationId
-    ${where}
+    ${whereSql}
     GROUP BY r.service
     ORDER BY value DESC;
   `;
-
-  const { recordset } = await safeQuery<{ name: string; value: number }>(
-    sql,
-    params
-  );
+  const { recordset } = await safeQuery<Breakdown>(sql, params);
   return recordset;
 }
 
 export type ShiftBreakdown = { name: string; value: number };
-
 export async function fetchShiftDistribution(
   startDate?: string,
   endDate?: string,
   station?: string
 ): Promise<ShiftBreakdown[]> {
-  let filters: BaseFilters = { startDate, endDate, station };
-  filters = await injectRoleFilters(filters);
+  const filters: BaseFilters = { startDate, endDate, station };
+  const params: Record<string, unknown> = {};
+  await injectRoleFilters(filters, params);
+  const whereSql = buildWhere(filters, params);
 
-  const params: Record<string, unknown> = {
-    startDate: filters.startDate,
-    endDate: filters.endDate,
-    station: filters.station,
-    userId: filters.userId,
-  };
-
-  const where = buildWhereClause(filters, params);
   const sql = `
     SELECT
       sh.name AS name,
@@ -226,15 +180,11 @@ export async function fetchShiftDistribution(
     JOIN [User] u ON u.id = r.userId
     LEFT JOIN stations st ON st.id = u.stationId
     LEFT JOIN shifts sh ON sh.id = u.shiftId
-    ${where}
+    ${whereSql}
     GROUP BY sh.name
     ORDER BY value DESC;
   `;
-
-  const { recordset } = await safeQuery<{ name: string; value: number }>(
-    sql,
-    params
-  );
+  const { recordset } = await safeQuery<ShiftBreakdown>(sql, params);
   return recordset;
 }
 
@@ -245,6 +195,9 @@ export type TopPerformer = {
   value: number;
 };
 
+/**
+ * Fetch top billers, scoped by role.
+ */
 export async function fetchTopBillers(
   startDate?: string,
   endDate?: string,
@@ -254,29 +207,24 @@ export async function fetchTopBillers(
   const email = session?.user?.email;
   const me = email ? await getUser(email) : null;
   const role = me?.role;
-  const amBiller = role === "biller";
-  const amSupervisor = role === "supervisor";
 
-  let filters: BaseFilters = { startDate, endDate, station };
-  if (amSupervisor || amBiller) {
-    filters = { ...filters };
-    if (me?.station) filters.station = me.station;
-    if (amBiller && me?.id) filters.userId = me.id;
+  const params: Record<string, unknown> = { startDate, endDate, station };
+  const clauses: string[] = [];
+  if (startDate && endDate)
+    clauses.push("r.createdAt BETWEEN @startDate AND @endDate");
+  if (station) clauses.push("st.name = @station");
+  if (role === "supervisor" || role === "biller") {
+    if (me?.stationId) {
+      clauses.push("u.stationId = @stationId");
+      params.stationId = me.stationId;
+    }
   }
-  filters = await injectRoleFilters(filters);
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
 
-  const params: Record<string, unknown> = {
-    startDate: filters.startDate,
-    endDate: filters.endDate,
-    station: filters.station,
-    userId: filters.userId,
-  };
-
-  const where = buildWhereClause(filters, params);
   const sql = `
     SELECT
       u.id AS userId,
-      u.name,
+      u.name AS name,
       COUNT(*) AS count,
       COALESCE(SUM(r.value),0) AS value
     FROM records r
@@ -286,48 +234,39 @@ export async function fetchTopBillers(
     GROUP BY u.id, u.name
     ORDER BY count DESC;
   `;
-
-  const { recordset } = await safeQuery<{
-    userId: number;
-    name: string;
-    count: number;
-    value: number;
-  }>(sql, params);
+  const { recordset } = await safeQuery<TopPerformer>(sql, params);
   const leaderboard = recordset;
 
-  if (!amBiller || !me) return leaderboard.slice(0, 5);
-
-  const myIndex = leaderboard.findIndex((p) => p.userId === me.id);
-  if (myIndex < 0) return leaderboard.slice(0, 5);
-
-  const start = Math.max(0, myIndex - 2);
-  const end = Math.min(leaderboard.length, myIndex + 3);
-  const window = leaderboard.slice(start, end);
-
-  if (start === 0 && window.length < 5) {
+  // Non-billers see top 5
+  if (role !== "biller" || !me) {
     return leaderboard.slice(0, 5);
   }
-  return window;
+  // Biller sees ±2 around themselves
+  const idx = leaderboard.findIndex((p) => p.userId === me.id);
+  if (idx < 0) return leaderboard.slice(0, 5);
+  const start = Math.max(0, idx - 2);
+  const end = Math.min(leaderboard.length, idx + 3);
+  const slice = leaderboard.slice(start, end);
+  if (start === 0 && slice.length < 5)
+    return leaderboard.slice(0, Math.min(5, leaderboard.length));
+  return slice;
 }
 
 export type TopService = { name: string; count: number; value: number };
 
+/**
+ * Fetch top services.
+ */
 export async function fetchTopServices(
   startDate?: string,
   endDate?: string,
   station?: string
 ): Promise<TopService[]> {
-  let filters: BaseFilters = { startDate, endDate, station };
-  filters = await injectRoleFilters(filters);
+  const filters: BaseFilters = { startDate, endDate, station };
+  const params: Record<string, unknown> = {};
+  await injectRoleFilters(filters, params);
+  const whereSql = buildWhere(filters, params);
 
-  const params: Record<string, unknown> = {
-    startDate: filters.startDate,
-    endDate: filters.endDate,
-    station: filters.station,
-    userId: filters.userId,
-  };
-
-  const where = buildWhereClause(filters, params);
   const sql = `
     SELECT
       r.service AS name,
@@ -336,16 +275,11 @@ export async function fetchTopServices(
     FROM records r
     JOIN [User] u ON u.id = r.userId
     LEFT JOIN stations st ON st.id = u.stationId
-    ${where}
+    ${whereSql}
     GROUP BY r.service
     ORDER BY count DESC
     OFFSET 0 ROWS FETCH NEXT 5 ROWS ONLY;
   `;
-
-  const { recordset } = await safeQuery<{
-    name: string;
-    count: number;
-    value: number;
-  }>(sql, params);
+  const { recordset } = await safeQuery<TopService>(sql, params);
   return recordset;
 }
