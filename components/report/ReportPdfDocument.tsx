@@ -52,6 +52,18 @@ const styles = StyleSheet.create({
     fontFamily: "Inter",
     fontSize: 10,
     backgroundColor: "#FFFFFF",
+    position: "relative",
+  },
+  watermark: {
+    position: "absolute",
+    top: "40%",
+    left: "15%",
+    fontSize: 60,
+    color: "rgba(0, 67, 31, 0.05)",
+    fontWeight: 700,
+    transform: "rotate(-45deg)",
+    textAlign: "center",
+    width: "70%",
   },
   header: {
     marginBottom: 20,
@@ -98,7 +110,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: COLORS.secondary,
     textAlign: "center",
-    marginTop: 15,
     marginBottom: 15,
   },
   logo: {
@@ -108,7 +119,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   section: {
-    marginBottom: 20,
+    marginBottom: 25,
   },
   sectionHeader: {
     backgroundColor: COLORS.headerBg,
@@ -176,6 +187,7 @@ const styles = StyleSheet.create({
     fontWeight: 500,
     borderTopWidth: 1,
     borderTopColor: COLORS.primary,
+    paddingTop: 8,
   },
   pageNumber: {
     position: "absolute",
@@ -206,13 +218,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 15,
     paddingVertical: 8,
-    borderTop: 1,
-    borderBottom: 1,
+    borderTop: 2,
+    borderBottom: 2,
     borderColor: COLORS.primary,
   },
   summaryItem: {
     flex: 1,
     textAlign: "center",
+    paddingVertical: 5,
   },
   summaryLabel: {
     fontSize: 9,
@@ -245,6 +258,11 @@ const styles = StyleSheet.create({
     fontSize: 8,
     color: "#666",
     textAlign: "center",
+  },
+  divider: {
+    borderRightWidth: 1,
+    borderRightColor: COLORS.primary,
+    height: "100%",
   },
 });
 
@@ -443,6 +461,10 @@ export default function ReportPdfDocument(raw: ReportData) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        <Text style={styles.watermark} fixed>
+          LET&apos;S MAKE NAIROBI WORK
+        </Text>
+
         {/* Mosaic Placeholder - Top Left */}
         <Image src="/images/mosaic.png" style={styles.mosaicPlaceholder} />
 
@@ -480,7 +502,7 @@ export default function ReportPdfDocument(raw: ReportData) {
               `Station: ${station || "All Stations"}`,
               `Ranked by: ${rankBy ? "Monetary Value" : "Transaction Count"}`,
               `Grouped by shift: ${groupByShift ? "Yes" : "No"}`,
-            ].join(" • ")}
+            ].join(" | ")}
           </Text>
         </View>
 
@@ -492,10 +514,13 @@ export default function ReportPdfDocument(raw: ReportData) {
             ["Services Used", safeSummary.totalServices],
             ["Clients Served", safeSummary.totalClients],
           ].map(([title, value], idx) => (
-            <View key={idx} style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>{title}</Text>
-              <Text style={styles.summaryValue}>{value}</Text>
-            </View>
+            <React.Fragment key={idx}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>{title}</Text>
+                <Text style={styles.summaryValue}>{value}</Text>
+              </View>
+              {idx < 3 && <View style={styles.divider} />}
+            </React.Fragment>
           ))}
         </View>
 
