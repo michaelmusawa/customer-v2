@@ -234,11 +234,27 @@ export default async function resetPasswordHandler(
   };
 }
 
-export async function sendMail(resetUrl: string, email: string, name?: string) {
-  const SMTP_SERVER_HOST = process.env.SMTP_SERVER_HOST;
-  const SMTP_SERVER_USERNAME = process.env.SMTP_SERVER_USERNAME;
-  const SMTP_SERVER_PASSWORD = process.env.SMTP_SERVER_PASSWORD;
+export interface MailResult {
+  success: boolean;
+  message: string;
+}
+
+export async function sendMail(
+  resetUrl: string,
+  email: string,
+  name?: string
+): Promise<MailResult> {
+  const { SMTP_SERVER_HOST, SMTP_SERVER_USERNAME, SMTP_SERVER_PASSWORD } =
+    process.env;
   // const SITE_MAIL_RECIEVER = process.env.SITE_MAIL_RECIEVER;
+
+  if (!SMTP_SERVER_HOST || !SMTP_SERVER_USERNAME || !SMTP_SERVER_PASSWORD) {
+    return {
+      success: false,
+      message:
+        "Mail configuration is incomplete. Please check SMTP_SERVER_HOST, SMTP_SERVER_USERNAME, and SMTP_SERVER_PASSWORD.",
+    };
+  }
 
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -266,9 +282,18 @@ export async function sendMail(resetUrl: string, email: string, name?: string) {
   // Send mail with defined transport object
   try {
     await transporter.sendMail(mailOptions);
-    console.log("Email sent.");
+    return {
+      success: true,
+      message: "Email sent successfully.",
+    };
   } catch (error) {
     console.error("Failed to send email:", error);
-    return "Failed";
+    // If Nodemailer gives you an error object, include its message
+    const errMsg =
+      error instanceof Error ? error.message : "Unknown error sending email.";
+    return {
+      success: false,
+      message: `Failed to send email: ${errMsg}`,
+    };
   }
 }

@@ -4,9 +4,9 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { ProfileActionState, UserActionState } from "./definitions";
-import pool from "./db";
+import pool, { DatabaseError } from "./db";
 import { randomBytes } from "crypto";
-import { sendMail } from "./loginActions";
+import { getUser, sendMail } from "./loginActions";
 import { ArchiveUserSchema, UpdateSchema } from "./schemas";
 import { auth } from "@/auth";
 import bcrypt from "bcryptjs";
@@ -81,7 +81,7 @@ export async function addUser(
     );
     if (existing.rows.length) {
       return {
-        errors: { email: [`A user with this email ${email} already exists.`] },
+        errors: { email: [`A user with ${email} already exists.`] },
       };
     }
 
@@ -118,14 +118,12 @@ export async function addUser(
 
     // 5. Send email
     const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password?token=${token}`;
+    const mailResult = await sendMail(resetUrl, email, name);
 
-    /// Needs a big refactor for error handling
-    const sendResetUrl = await sendMail(resetUrl, email, name);
-
-    if (sendResetUrl === "Failed") {
+    if (!mailResult.success) {
+      console.error("Email error:", mailResult.message);
       return {
-        state_error:
-          "Error validating the email. Check your internet connection or the email is not valid!",
+        state_error: mailResult.message,
       };
     }
 
@@ -276,6 +274,35 @@ export async function updateUser(
   } catch (err) {
     console.error("Error updating user:", err);
     return { state_error: "Unexpected error. Please try again." };
+  }
+}
+
+// In usersAction.ts
+export async function verifyPassword(email: string, password: string) {
+  try {
+    let user;
+    try {
+      user = await getUser(email);
+    } catch (err) {
+      if (err instanceof DatabaseError) {
+        // Surface this to the UI as errorMessage
+        return "Please try again later.";
+      }
+      throw err;
+    }
+
+    // 2) If user not found, or password mismatch, fall through to credentials‑fail
+    if (!user) {
+      return false;
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+    if (match) {
+      return match;
+    }
+  } catch (error) {
+    console.error("Password verification failed:", error);
+    return false;
   }
 }
 
