@@ -14,7 +14,7 @@ const poolConfig: MSSQLConfig = {
   server: process.env.DB_SERVER || "localhost", // e.g. "localhost"
   database: process.env.DB_NAME,
   options: {
-    encrypt: true,
+    encrypt: false,
     trustServerCertificate: true,
   },
   port: parseInt(process.env.DB_PORT || "1433", 10),

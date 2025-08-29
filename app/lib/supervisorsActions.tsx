@@ -111,33 +111,56 @@ export async function fetchFilteredUsers(
   if (startDate && endDate) {
     whereClauses.push("u.createdAt BETWEEN @startDate AND @endDate");
   }
+
+  // Only add the clause AND declare the param when `role` is provided
   if (role) {
     whereClauses.push("u.role = @role");
+    params.role = role;
   }
+
+  // injectSupervisorFilter may set params.stationId
   if (params.stationId) {
     whereClauses.push("u.stationId = @stationId");
   }
 
+  const whereSql = whereClauses.length
+    ? `WHERE ${whereClauses.join(" AND ")}`
+    : "";
+
   const sql = `
+    WITH ordered AS (
+      SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.role,
+        u.status,
+        u.image,
+        s.name AS shift,
+        st.name AS station,
+        c.name AS counter,
+        u.createdAt,
+        ROW_NUMBER() OVER (ORDER BY u.createdAt ASC, u.id ASC) AS rn
+      FROM [User] u
+      LEFT JOIN shifts s ON u.shiftId = s.id
+      LEFT JOIN stations st ON u.stationId = st.id
+      LEFT JOIN counters c ON u.counterId = c.id
+      ${whereSql}
+    )
     SELECT
-      u.id,
-      u.name,
-      u.email,
-      u.role,
-      u.status,
-      u.image,
-      s.name AS shift,
-      st.name AS station,
-      c.name AS counter,
-      u.createdAt
-    FROM [User] u
-    LEFT JOIN shifts s ON u.shiftId = s.id
-    LEFT JOIN stations st ON u.stationId = st.id
-    LEFT JOIN counters c ON u.counterId = c.id
-    WHERE ${whereClauses.join(" AND ")}
-    ORDER BY u.createdAt ASC
-    OFFSET @offset ROWS
-    FETCH NEXT @limit ROWS ONLY
+      id,
+      name,
+      email,
+      role,
+      status,
+      image,
+      shift,
+      station,
+      counter,
+      createdAt
+    FROM ordered
+    WHERE rn BETWEEN (@offset + 1) AND (@offset + @limit)
+    ORDER BY rn;
   `;
 
   const { recordset } = await safeQuery<User>(sql, params);

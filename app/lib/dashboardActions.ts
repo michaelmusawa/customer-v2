@@ -121,16 +121,17 @@ export async function fetchTimeSeries(
   const whereSql = buildWhere(filters, params);
 
   const sql = `
-    SELECT
-      FORMAT(r.createdAt, 'yyyy-MM-dd') AS date,
-      COUNT(*) AS count
-    FROM records r
-    JOIN [User] u ON u.id = r.userId
-    LEFT JOIN stations st ON st.id = u.stationId
-    ${whereSql}
-    GROUP BY FORMAT(r.createdAt,'yyyy-MM-dd')
-    ORDER BY date;
-  `;
+  SELECT
+    CONVERT(varchar(10), r.createdAt, 23) AS date,
+    COUNT(*) AS count
+  FROM records r
+  JOIN [User] u ON u.id = r.userId
+  LEFT JOIN stations st ON st.id = u.stationId
+  ${whereSql}
+  GROUP BY CONVERT(varchar(10), r.createdAt, 23)
+  ORDER BY date;
+`;
+
   const { recordset } = await safeQuery<TimePoint>(sql, params);
   return recordset;
 }
@@ -268,18 +269,18 @@ export async function fetchTopServices(
   const whereSql = buildWhere(filters, params);
 
   const sql = `
-    SELECT
-      r.service AS name,
-      COUNT(*) AS count,
-      COALESCE(SUM(r.value),0) AS value
-    FROM records r
-    JOIN [User] u ON u.id = r.userId
-    LEFT JOIN stations st ON st.id = u.stationId
-    ${whereSql}
-    GROUP BY r.service
-    ORDER BY count DESC
-    OFFSET 0 ROWS FETCH NEXT 5 ROWS ONLY;
-  `;
+  SELECT TOP 5
+    r.service AS name,
+    COUNT(*) AS count,
+    COALESCE(SUM(r.value),0) AS value
+  FROM records r
+  JOIN [User] u ON u.id = r.userId
+  LEFT JOIN stations st ON st.id = u.stationId
+  ${whereSql}
+  GROUP BY r.service
+  ORDER BY COUNT(*) DESC;
+`;
+
   const { recordset } = await safeQuery<TopService>(sql, params);
   return recordset;
 }
