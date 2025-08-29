@@ -194,7 +194,7 @@ export async function sendMail(resetUrl: string, email: string, name?: string) {
     service: "gmail",
     host: process.env.SMTP_SERVER_HOST,
     port: 587,
-    secure: true,
+    secure: false,
     auth: {
       user: process.env.SMTP_SERVER_USERNAME,
       pass: process.env.SMTP_SERVER_PASSWORD,
