@@ -67,23 +67,26 @@ export default function Pagination({ totalPages }: { totalPages: number }) {
             className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
             aria-label="Pagination"
           >
-            <Link
-              href={createPageURL(currentPage - 1)}
-              className={clsx(
-                "relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white dark:bg-gray-800 text-sm font-medium",
-                {
-                  "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700":
-                    currentPage > 1,
-                  "text-gray-300 dark:text-gray-600 cursor-not-allowed":
-                    currentPage <= 1,
-                }
-              )}
-              aria-disabled={currentPage <= 1}
-            >
-              <span className="sr-only">Previous</span>
-              <FiChevronLeft className="h-5 w-5" aria-hidden="true" />
-            </Link>
+            {/* PREVIOUS */}
+            {currentPage > 1 ? (
+              <Link
+                href={createPageURL(currentPage - 1)}
+                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                <span className="sr-only">Previous</span>
+                <FiChevronLeft className="h-5 w-5" aria-hidden="true" />
+              </Link>
+            ) : (
+              <span
+                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white dark:bg-gray-800 text-sm font-medium text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                aria-disabled="true"
+              >
+                <span className="sr-only">Previous</span>
+                <FiChevronLeft className="h-5 w-5" aria-hidden="true" />
+              </span>
+            )}
 
+            {/* PAGE NUMBERS */}
             {allPages.map((page, index) => {
               let position: "first" | "last" | "single" | "middle" | undefined;
 
@@ -94,7 +97,7 @@ export default function Pagination({ totalPages }: { totalPages: number }) {
 
               return (
                 <PaginationNumber
-                  key={page}
+                  key={page + index.toString()}
                   href={createPageURL(page)}
                   page={page}
                   position={position}
@@ -103,22 +106,24 @@ export default function Pagination({ totalPages }: { totalPages: number }) {
               );
             })}
 
-            <Link
-              href={createPageURL(currentPage + 1)}
-              className={clsx(
-                "relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white dark:bg-gray-800 text-sm font-medium",
-                {
-                  "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700":
-                    currentPage < totalPages,
-                  "text-gray-300 dark:text-gray-600 cursor-not-allowed":
-                    currentPage >= totalPages,
-                }
-              )}
-              aria-disabled={currentPage >= totalPages}
-            >
-              <span className="sr-only">Next</span>
-              <FiChevronRight className="h-5 w-5" aria-hidden="true" />
-            </Link>
+            {/* NEXT */}
+            {currentPage < totalPages ? (
+              <Link
+                href={createPageURL(currentPage + 1)}
+                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                <span className="sr-only">Next</span>
+                <FiChevronRight className="h-5 w-5" aria-hidden="true" />
+              </Link>
+            ) : (
+              <span
+                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white dark:bg-gray-800 text-sm font-medium text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                aria-disabled="true"
+              >
+                <span className="sr-only">Next</span>
+                <FiChevronRight className="h-5 w-5" aria-hidden="true" />
+              </span>
+            )}
           </nav>
         </div>
       </div>
