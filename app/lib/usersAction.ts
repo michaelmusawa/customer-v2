@@ -5,13 +5,13 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { ProfileActionState, UserActionState } from "./definitions";
 import { randomBytes } from "crypto";
-import { sendMail } from "./loginActions";
+import { getUser, sendMail } from "./loginActions";
 import { ArchiveUserSchema, UpdateSchema } from "./schemas";
 import { auth } from "@/auth";
 import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs/promises";
-import { safeQuery } from "./db"; // ✅ use safeQuery, not pool
+import { DatabaseError, safeQuery } from "./db"; // ✅ use safeQuery, not pool
 
 // Validation schema stays the same...
 const AddUserSchema = z.object({
@@ -262,6 +262,34 @@ export async function updateUser(
   } catch (err) {
     console.error("Error updating user:", err);
     return { state_error: "Unexpected error. Please try again." };
+  }
+}
+
+export async function verifyPassword(email: string, password: string) {
+  try {
+    let user;
+    try {
+      user = await getUser(email);
+    } catch (err) {
+      if (err instanceof DatabaseError) {
+        // Surface this to the UI as errorMessage
+        return "Please try again later.";
+      }
+      throw err;
+    }
+
+    // 2) If user not found, or password mismatch, fall through to credentials‑fail
+    if (!user) {
+      return false;
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+    if (match) {
+      return match;
+    }
+  } catch (error) {
+    console.error("Password verification failed:", error);
+    return false;
   }
 }
 
