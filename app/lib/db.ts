@@ -25,7 +25,7 @@ const poolConnect = pool.connect().catch((err) => {
 });
 
 // Safe query wrapper (same shape as before)
-export async function safeQuery<T = any>(
+export async function safeQuery<T>(
   text: string,
   params: unknown[] = []
 ): Promise<{ rows: T[] }> {
@@ -34,7 +34,7 @@ export async function safeQuery<T = any>(
 
     const request = pool.request();
     params.forEach((param, i) => {
-      request.input(`p${i + 1}`, param as any);
+      request.input(`p${i + 1}`, param);
     });
 
     const result = await request.query<T>(

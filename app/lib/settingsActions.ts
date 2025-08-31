@@ -2,7 +2,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import pool from "./db";
 import {
   AddSettingSchema,
   AddSubserviceSchema,
@@ -114,7 +113,7 @@ export async function addSetting(
     console.error("addSetting error:", err);
 
     const state_error =
-      isDBError(err) && (err as any).code === "23505"
+      isDBError(err) && err.code === "23505"
         ? "That entry already exists."
         : "Unexpected error. Please try again.";
 

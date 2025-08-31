@@ -48,7 +48,12 @@ export async function fetchSummaryStats(
   `;
 
   const { rows } = await safeQuery(sql, params);
-  return rows[0];
+  return rows[0] as {
+    totalRecords: number;
+    totalValue: number;
+    totalServices: number;
+    totalClients: number;
+  };
 }
 
 export async function fetchRankingData(
