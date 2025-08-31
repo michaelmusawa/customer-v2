@@ -4,10 +4,12 @@
 
 import { auth } from "@/auth";
 import { getUser } from "./loginActions";
-import pool from "./db";
+import { safeQuery } from "./db";
 import { RecordActionState, RecordRow } from "./definitions";
 import { RecordInput, RecordSchema } from "./schemas";
 import { revalidatePath } from "next/cache";
+
+/** Get total pages of records matching filters and role */
 
 /** Get total pages of records matching filters and role */
 export async function fetchRecordsPages(
@@ -17,75 +19,66 @@ export async function fetchRecordsPages(
   role: string | null
 ): Promise<number> {
   const ITEMS_PER_PAGE = 10;
-  const likeParam = `%${query}%`;
-  const params = [likeParam];
+  const likeParam = `%${query.toLowerCase()}%`;
+  const params: unknown[] = [likeParam];
 
   let countSql = `
     SELECT COUNT(*) AS total
     FROM records r
-    JOIN "User" u ON r."userId"      = u.id
-    JOIN counters c ON u."counterId" = c.id
-    JOIN shifts   s ON u."shiftId"   = s.id
-    
+    JOIN [User] u ON r.userId = u.id
+    JOIN counters c ON u.counterId = c.id
+    JOIN shifts   s ON u.shiftId = s.id
   `;
 
-  // Base text search on several fields
   const where: string[] = [
-    `(r.ticket   ILIKE $1 OR
-      r."recordType" ILIKE $1 OR
-      r.name     ILIKE $1 OR
-      r.service  ILIKE $1 OR
-      r."recordNumber" ILIKE $1 OR
-      c.name     ILIKE $1 OR
-      s.name     ILIKE $1)`,
+    `(LOWER(r.ticket) LIKE $1 OR
+      LOWER(r.recordType) LIKE $1 OR
+      LOWER(r.name) LIKE $1 OR
+      LOWER(r.service) LIKE $1 OR
+      LOWER(r.recordNumber) LIKE $1 OR
+      LOWER(c.name) LIKE $1 OR
+      LOWER(s.name) LIKE $1)`,
   ];
 
-  // Date filtering
   if (startDate && endDate) {
     where.push(
-      `r."createdAt" BETWEEN $${params.length + 1} AND $${params.length + 2}`
+      `r.createdAt BETWEEN $${params.length + 1} AND $${params.length + 2}`
     );
     params.push(startDate, endDate);
   } else if (startDate) {
-    where.push(`r."createdAt" >= $${params.length + 1}`);
+    where.push(`r.createdAt >= $${params.length + 1}`);
     params.push(startDate);
   } else if (endDate) {
-    where.push(`r."createdAt" <= $${params.length + 1}`);
+    where.push(`r.createdAt <= $${params.length + 1}`);
     params.push(endDate);
   }
 
-  // Role filtering
   if (role === "supervisor") {
-    // only records from your station
     const session = await auth();
     const email = session?.user?.email || "";
     const user = await getUser(email);
-    const stationId = user?.stationId;
-    if (stationId != null) {
-      where.push(`u."stationId" = $${params.length + 1}`);
-      params.push(`${stationId}`);
+    if (user?.stationId != null) {
+      where.push(`u.stationId = $${params.length + 1}`);
+      params.push(user.stationId);
     }
   } else if (role === "biller") {
-    // only your own records
     const session = await auth();
     const email = session?.user?.email || "";
     const user = await getUser(email);
-    const userId = user?.id;
-    if (userId != null) {
-      where.push(`r."userId" = $${params.length + 1}`);
-      params.push(`${userId}`);
+    if (user?.id != null) {
+      where.push(`r.userId = $${params.length + 1}`);
+      params.push(user.id);
     }
   }
-  // admin & coordinator: no extra filter
 
   countSql += ` WHERE ${where.join(" AND ")}`;
 
-  const res = await pool.query(countSql, params);
-  const total = parseInt(res.rows[0].total, 10);
+  const { rows } = await safeQuery<{ total: number }>(countSql, params);
+  const total = Number(rows[0].total);
   return Math.ceil(total / ITEMS_PER_PAGE);
 }
 
-/** Fetch one page of records matching filters and role */
+/** Fetch one page of records */
 export async function fetchFilteredRecords(
   query: string,
   startDate: string,
@@ -96,55 +89,53 @@ export async function fetchFilteredRecords(
 ): Promise<RecordRow[]> {
   const offset = (currentPage - 1) * itemsPerPage;
   const likeParam = `%${query}%`;
-  const params = [likeParam];
+  const params: unknown[] = [likeParam];
 
+  // Base SELECT
   let sql = `
-    SELECT
-      r.id,
-      r.ticket,
-      r."recordType",
-      r.name,
-      r.service,
-      r."subService",
-      r."recordNumber",
-      r.value,
-      c.name   AS counter,
-      s.name   AS shift,
-      r."createdAt",
-
-      -- New column: true if at least one EditedRecord exists for this record
-      EXISTS(
-        SELECT 1
-        FROM "EditedRecord" er
-        WHERE er."recordId" = r.id
-      ) AS "hasEdits"
-
-    FROM records r
-    JOIN "User" u     ON r."userId" = u.id
-    JOIN counters c   ON u."counterId" = c.id
-    JOIN shifts   s   ON u."shiftId"   = s.id
+    WITH OrderedRecords AS (
+      SELECT
+        r.id,
+        r.ticket,
+        r.recordType,
+        r.name,
+        r.service,
+        r.subService,
+        r.recordNumber,
+        r.value,
+        c.name AS counter,
+        s.name AS shift,
+        r.createdAt,
+        CASE WHEN EXISTS(
+          SELECT 1 FROM EditedRecord er WHERE er.recordId = r.id
+        ) THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS hasEdits,
+        ROW_NUMBER() OVER (ORDER BY r.createdAt DESC) AS rn
+      FROM records r
+      JOIN [User] u ON r.userId = u.id
+      JOIN counters c ON u.counterId = c.id
+      JOIN shifts   s ON u.shiftId = s.id
   `;
 
   const where: string[] = [
-    `(r.ticket   ILIKE $1 OR
-      r."recordType" ILIKE $1 OR
-      r.name     ILIKE $1 OR
-      r.service  ILIKE $1 OR
-      r."recordNumber" ILIKE $1 OR
-      c.name     ILIKE $1 OR
-      s.name     ILIKE $1)`,
+    `(LOWER(r.ticket) LIKE $1 OR
+      LOWER(r.recordType) LIKE $1 OR
+      LOWER(r.name) LIKE $1 OR
+      LOWER(r.service) LIKE $1 OR
+      LOWER(r.recordNumber) LIKE $1 OR
+      LOWER(c.name) LIKE $1 OR
+      LOWER(s.name) LIKE $1)`,
   ];
 
   if (startDate && endDate) {
     where.push(
-      `r."createdAt" BETWEEN $${params.length + 1} AND $${params.length + 2}`
+      `r.createdAt BETWEEN $${params.length + 1} AND $${params.length + 2}`
     );
     params.push(startDate, endDate);
   } else if (startDate) {
-    where.push(`r."createdAt" >= $${params.length + 1}`);
+    where.push(`r.createdAt >= $${params.length + 1}`);
     params.push(startDate);
   } else if (endDate) {
-    where.push(`r."createdAt" <= $${params.length + 1}`);
+    where.push(`r.createdAt <= $${params.length + 1}`);
     params.push(endDate);
   }
 
@@ -152,39 +143,33 @@ export async function fetchFilteredRecords(
     const session = await auth();
     const email = session?.user?.email || "";
     const user = await getUser(email);
-    const stationId = user?.stationId;
-
-    if (stationId !== null) {
-      where.push(`u."stationId" = $${params.length + 1}`);
-      params.push(`${stationId}`);
+    if (user?.stationId) {
+      where.push(`u.stationId = $${params.length + 1}`);
+      params.push(user.stationId);
     }
   } else if (role === "biller") {
     const session = await auth();
     const email = session?.user?.email || "";
     const user = await getUser(email);
-    const userId = user?.id;
-    if (userId !== null) {
-      where.push(`r."userId" = $${params.length + 1}`);
-      params.push(`${userId}`);
+    if (user?.id) {
+      where.push(`r.userId = $${params.length + 1}`);
+      params.push(user.id);
     }
   }
 
-  sql += ` WHERE ${where.join(" AND ")}`;
-  sql += ` ORDER BY r."createdAt" DESC `;
+  sql += ` WHERE ${where.join(" AND ")} ) `; // close CTE
 
-  // Add pagination only if itemsPerPage is not set to fetch all records
-  if (itemsPerPage > 0) {
-    sql += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2} `;
-    params.push(`${itemsPerPage}`, `${offset}`);
-  }
+  // Pagination: return only the slice
+  sql += `
+    SELECT *
+    FROM OrderedRecords
+    WHERE rn BETWEEN $${params.length + 1} AND $${params.length + 2}
+  `;
 
-  try {
-    const res = await pool.query<RecordRow>(sql, params);
-    return res.rows;
-  } catch (error) {
-    console.error("Database Error:", error);
-    throw new Error("Failed to fetch records");
-  }
+  params.push(offset + 1, offset + itemsPerPage);
+
+  const { rows } = await safeQuery<RecordRow>(sql, params);
+  return rows;
 }
 
 interface EditRecordRow {
@@ -209,6 +194,7 @@ interface EditRecordRow {
 // app/lib/recordsActions.ts
 
 /** Get total pages of pending (for non‑billers) or all (for billers) edited records */
+
 export async function fetchEditedRecordsPages(
   query: string,
   startDate: string,
@@ -217,77 +203,69 @@ export async function fetchEditedRecordsPages(
 ): Promise<number> {
   const ITEMS_PER_PAGE = 10;
   const likeParam = `%${query}%`;
-  const params = [likeParam];
+  const params: unknown[] = [likeParam];
 
   let countSql = `
     SELECT COUNT(*) AS total
-    FROM "EditedRecord" r
-    JOIN "User" u ON r."billerId" = u.id
-    JOIN counters c ON u."counterId" = c.id
-    JOIN shifts   s ON u."shiftId"   = s.id
+    FROM EditedRecord r
+    JOIN [User] u ON r.billerId = u.id
+    JOIN counters c ON u.counterId = c.id
+    JOIN shifts   s ON u.shiftId   = s.id
   `;
 
   const where: string[] = [
-    `(
-      r.ticket        ILIKE $1 OR
-      r."recordType"  ILIKE $1 OR
-      r.name          ILIKE $1 OR
-      r.service       ILIKE $1 OR
-      r."recordNumber" ILIKE $1 OR
-      c.name          ILIKE $1 OR
-      s.name          ILIKE $1
-    )`,
+    `(LOWER(r.ticket)       LIKE $1 OR
+      LOWER(r.recordType)   LIKE $1 OR
+      LOWER(r.name)         LIKE $1 OR
+      LOWER(r.service)      LIKE $1 OR
+      LOWER(r.recordNumber) LIKE $1 OR
+      LOWER(c.name)         LIKE $1 OR
+      LOWER(s.name)         LIKE $1)`,
   ];
 
-  // Date filtering
   if (startDate && endDate) {
     where.push(
-      `r."createdAt" BETWEEN $${params.length + 1} AND $${params.length + 2}`
+      `r.createdAt BETWEEN $${params.length + 1} AND $${params.length + 2}`
     );
     params.push(startDate, endDate);
   } else if (startDate) {
-    where.push(`r."createdAt" >= $${params.length + 1}`);
+    where.push(`r.createdAt >= $${params.length + 1}`);
     params.push(startDate);
   } else if (endDate) {
-    where.push(`r."createdAt" <= $${params.length + 1}`);
+    where.push(`r.createdAt <= $${params.length + 1}`);
     params.push(endDate);
   }
 
-  // Status filtering for non‑billers
   if (role !== "biller") {
     where.push(`r.status = 'pending'`);
   }
 
-  // Role‑specific scoping
   if (role === "supervisor") {
     const session = await auth();
     const email = session?.user?.email || "";
     const user = await getUser(email);
-    const stationId = user?.stationId;
-    if (stationId != null) {
-      where.push(`u."stationId" = $${params.length + 1}`);
-      params.push(`${stationId}`);
+    if (user?.stationId != null) {
+      where.push(`u.stationId = $${params.length + 1}`);
+      params.push(user.stationId);
     }
   } else if (role === "biller") {
     const session = await auth();
     const email = session?.user?.email || "";
     const user = await getUser(email);
-    const userId = user?.id;
-    if (userId != null) {
-      where.push(`r."billerId" = $${params.length + 1}`);
-      params.push(`${userId}`);
+    if (user?.id != null) {
+      where.push(`r.billerId = $${params.length + 1}`);
+      params.push(user.id);
     }
   }
 
   countSql += ` WHERE ${where.join(" AND ")}`;
 
-  const res = await pool.query(countSql, params);
-  const total = parseInt(res.rows[0].total, 10);
+  const { rows } = await safeQuery<{ total: string }>(countSql, params);
+  const total = parseInt(rows[0].total, 10);
   return Math.ceil(total / ITEMS_PER_PAGE);
 }
 
-/** Fetch filtered & paginated edited records (only pending for non‑billers) */
-
+/** Fetch filtered & paginated edited records (only pending for non-billers) */
 export async function fetchFilteredEditedRecords(
   query: string,
   startDate: string,
@@ -298,87 +276,75 @@ export async function fetchFilteredEditedRecords(
   const ITEMS_PER_PAGE = 10;
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
   const likeParam = `%${query}%`;
-  const params: Array<string | number> = [likeParam];
+  const params: unknown[] = [likeParam];
 
-  // Base SQL, joining EditedRecord to original records as `orig`
   let sql = `
-    SELECT
-      r.id,
-      r.ticket,
-      r."recordId",
-      r."recordType",
-      r.name,
-      r.service,
-      r."subService",
-      r."recordNumber",
-      r.value,
-      c.name   AS counter,
-      s.name   AS shift,
-      u.name   AS "billerName",
-      r."createdAt",
-
-      -- compute how many fields differ from the original
-      (
-        (CASE WHEN r.ticket        <> orig.ticket        THEN 1 ELSE 0 END)
-      + (CASE WHEN r."recordType" <> orig."recordType" THEN 1 ELSE 0 END)
-      + (CASE WHEN r.name          <> orig.name         THEN 1 ELSE 0 END)
-      + (CASE WHEN r.service       <> orig.service      THEN 1 ELSE 0 END)
-      + (CASE WHEN r."subService"  <> orig."subService" THEN 1 ELSE 0 END)
-      + (CASE WHEN r."recordNumber"<> orig."recordNumber" THEN 1 ELSE 0 END)
-      + (CASE WHEN r.value         <> orig.value        THEN 1 ELSE 0 END)
-      ) AS changes
-
-    FROM "EditedRecord" r
-
-    -- join to the biller user, counters, shifts
-    JOIN "User"    u    ON r."billerId" = u.id
-    JOIN counters  c    ON u."counterId" = c.id
-    JOIN shifts    s    ON u."shiftId"   = s.id
-
-    -- here’s the original “live” record
-    JOIN records   orig ON orig.id = r."recordId"
+    WITH OrderedEdited AS (
+      SELECT
+        r.id,
+        r.ticket,
+        r.recordId,
+        r.recordType,
+        r.name,
+        r.service,
+        r.subService,
+        r.recordNumber,
+        r.value,
+        c.name   AS counter,
+        s.name   AS shift,
+        u.name   AS billerName,
+        r.createdAt,
+        (
+          (CASE WHEN r.ticket        <> orig.ticket        THEN 1 ELSE 0 END)
+        + (CASE WHEN r.recordType   <> orig.recordType    THEN 1 ELSE 0 END)
+        + (CASE WHEN r.name         <> orig.name          THEN 1 ELSE 0 END)
+        + (CASE WHEN r.service      <> orig.service       THEN 1 ELSE 0 END)
+        + (CASE WHEN r.subService   <> orig.subService    THEN 1 ELSE 0 END)
+        + (CASE WHEN r.recordNumber <> orig.recordNumber  THEN 1 ELSE 0 END)
+        + (CASE WHEN r.value        <> orig.value         THEN 1 ELSE 0 END)
+        ) AS changes,
+        ROW_NUMBER() OVER (ORDER BY r.createdAt DESC) AS rn
+      FROM EditedRecord r
+      JOIN [User]    u    ON r.billerId = u.id
+      JOIN counters  c    ON u.counterId = c.id
+      JOIN shifts    s    ON u.shiftId   = s.id
+      JOIN records   orig ON orig.id = r.recordId
   `;
 
-  // build up our WHERE clauses
   const where: string[] = [
-    `(
-      r.ticket        ILIKE $1 OR
-      r."recordType"  ILIKE $1 OR
-      r.name          ILIKE $1 OR
-      r.service       ILIKE $1 OR
-      r."subService"  ILIKE $1 OR
-      r."recordNumber"ILIKE $1 OR
-      c.name          ILIKE $1 OR
-      s.name          ILIKE $1
-    )`,
+    `(LOWER(r.ticket)       LIKE $1 OR
+      LOWER(r.recordType)   LIKE $1 OR
+      LOWER(r.name)         LIKE $1 OR
+      LOWER(r.service)      LIKE $1 OR
+      LOWER(r.subService)   LIKE $1 OR
+      LOWER(r.recordNumber) LIKE $1 OR
+      LOWER(c.name)         LIKE $1 OR
+      LOWER(s.name)         LIKE $1)`,
   ];
 
-  // date filters
   if (startDate && endDate) {
     where.push(
-      `r."createdAt" BETWEEN $${params.length + 1} AND $${params.length + 2}`
+      `r.createdAt BETWEEN $${params.length + 1} AND $${params.length + 2}`
     );
     params.push(startDate, endDate);
   } else if (startDate) {
-    where.push(`r."createdAt" >= $${params.length + 1}`);
+    where.push(`r.createdAt >= $${params.length + 1}`);
     params.push(startDate);
   } else if (endDate) {
-    where.push(`r."createdAt" <= $${params.length + 1}`);
+    where.push(`r.createdAt <= $${params.length + 1}`);
     params.push(endDate);
   }
 
-  // only pending for non‑billers
   if (role !== "biller") {
     where.push(`r.status = 'pending'`);
   }
 
-  // scope by station or by biller
   if (role === "supervisor") {
     const session = await auth();
     const email = session?.user?.email || "";
     const user = await getUser(email);
     if (user?.stationId) {
-      where.push(`u."stationId" = $${params.length + 1}`);
+      where.push(`u.stationId = $${params.length + 1}`);
       params.push(user.stationId);
     }
   } else if (role === "biller") {
@@ -386,23 +352,23 @@ export async function fetchFilteredEditedRecords(
     const email = session?.user?.email || "";
     const user = await getUser(email);
     if (user?.id) {
-      where.push(`r."billerId" = $${params.length + 1}`);
+      where.push(`r.billerId = $${params.length + 1}`);
       params.push(user.id);
     }
   }
 
-  // glue on WHERE
-  sql += ` WHERE ${where.join(" AND ")}`;
+  sql += ` WHERE ${where.join(" AND ")} ) `;
 
-  // ordering & pagination
+  // final pagination slice
   sql += `
-    ORDER BY r."createdAt" DESC
-    LIMIT $${params.length + 1}
-    OFFSET $${params.length + 2}
+    SELECT *
+    FROM OrderedEdited
+    WHERE rn BETWEEN $${params.length + 1} AND $${params.length + 2}
   `;
-  params.push(ITEMS_PER_PAGE, offset);
 
-  const { rows } = await pool.query<EditRecordRow>(sql, params);
+  params.push(offset + 1, offset + ITEMS_PER_PAGE);
+
+  const { rows } = await safeQuery<EditRecordRow>(sql, params);
   return rows;
 }
 
@@ -423,13 +389,12 @@ export async function addRecord(
     return { errors: { name: ["Name is required"] } };
   }
 
-  // 2. Extract arrays of row‑fields
+  // 2. Extract arrays of row-fields
   const services = formData.getAll("service") as string[];
   const subServices = formData.getAll("subService") as string[];
   const values = formData.getAll("value") as string[];
   const recordNumbers = formData.getAll("recordNumber") as string[];
 
-  // Must have at least one row
   if (!services.length) {
     return { state_error: "At least one record row is required." };
   }
@@ -451,7 +416,6 @@ export async function addRecord(
 
     const parsed = RecordSchema.safeParse(rowObj);
     if (!parsed.success) {
-      // prefix errors with row index
       Object.entries(parsed.error.flatten().fieldErrors).forEach(
         ([field, errs]) => {
           rowErrors[`${field}[${i}]`] = errs as string[];
@@ -463,35 +427,26 @@ export async function addRecord(
   }
 
   if (Object.keys(rowErrors).length) {
-    return {
-      errors: rowErrors,
-      message: "Please fix the errors below.",
-    };
+    return { errors: rowErrors, message: "Please fix the errors below." };
   }
 
-  // 4. Lookup userId from session
-  let userId: number | undefined;
+  // 4. Lookup userId
   const session = await auth();
-  if (session?.user?.email) {
-    const usr = await getUser(session.user.email);
-    if (usr) userId = usr.id;
-  }
-  if (!userId) {
+  const userEmail = session?.user?.email;
+  const usr = userEmail ? await getUser(userEmail) : null;
+  if (!usr?.id) {
     return { state_error: "User not authenticated." };
   }
 
-  // 5. Insert each row
-  const client = await pool.connect();
   try {
-    await client.query("BEGIN");
     const insertSql = `
       INSERT INTO records
-        (ticket, "recordType", name, service, "subService", "recordNumber", value, "userId")
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        (ticket, recordType, name, service, subService, recordNumber, value, userId)
+      VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8)
     `;
 
     for (const row of validRows) {
-      await client.query(insertSql, [
+      await safeQuery(insertSql, [
         row.ticket,
         row.recordType ?? null,
         row.name,
@@ -499,19 +454,15 @@ export async function addRecord(
         row.subService ?? null,
         row.recordNumber ?? null,
         row.value,
-        userId,
+        usr.id,
       ]);
     }
 
-    await client.query("COMMIT");
     revalidatePath("/records");
     return { message: "Record(s) added successfully!" };
   } catch (err) {
-    await client.query("ROLLBACK");
     console.error("AddRecord error:", err);
     return { state_error: "Failed to add record(s). Please try again." };
-  } finally {
-    client.release();
   }
 }
 
@@ -541,15 +492,22 @@ export async function updateRecord(
   }
 
   try {
-    await pool.query(
-      `UPDATE records
-       SET ticket = $1, "recordType" = $2, name = $3, service = $4, "subService" = $5, "recordNumber" = $6, value = $7
-       WHERE id = $8`,
+    await safeQuery(
+      `
+      UPDATE records
+      SET ticket = @p1,
+          recordType = @p2,
+          name = @p3,
+          service = @p4,
+          subService = @p5,
+          recordNumber = @p6,
+          value = @p7
+      WHERE id = @p8
+      `,
       [ticket, recordType, name, service, subService, recordNumber, value, id]
     );
 
-    revalidatePath("/dashboard"); // Adjust as needed
-
+    revalidatePath("/dashboard");
     return { message: "Record updated successfully!" };
   } catch (err) {
     console.error("Update failed:", err);
@@ -584,28 +542,25 @@ export async function editRecord(
     return { state_error: "All fields are required.", errors: {} };
   }
 
-  // get user id
-  const userSession = await auth();
-  const userEmail = userSession?.user?.email || "";
-  const userRes = await pool.query<{ id: number }>(
-    `SELECT id
-       FROM "User"
-       WHERE email = $1
-       LIMIT 1`,
-    [userEmail]
+  const session = await auth();
+  const email = session?.user?.email || "";
+  const userRes = await safeQuery<{ id: number }>(
+    `SELECT TOP 1 id FROM [User] WHERE email = @p1`,
+    [email]
   );
-  if (userRes.rows.length === 0) {
+
+  if (!userRes.rows.length) {
     return { state_error: "Unknown userEmail" };
   }
 
   const userId = userRes.rows[0].id;
 
   try {
-    await pool.query(
-      `INSERT INTO "EditedRecord"
-      ("recordId", ticket, "recordType", name, service, "subService", "recordNumber",
-       value, "billerId", reason, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8, $9, $10, $11)`,
+    await safeQuery(
+      `INSERT INTO EditedRecord
+        (recordId, ticket, recordType, name, service, subService, recordNumber,
+         [value], billerId, reason, status)
+       VALUES (@p1,@p2,@p3,@p4,@p5,@p6,@p7,@p8,@p9,@p10,'pending')`,
       [
         id,
         ticket,
@@ -617,15 +572,13 @@ export async function editRecord(
         value,
         userId,
         reason,
-        "pending",
       ]
     );
 
-    revalidatePath("/dashboard/biller/records"); // Adjust as needed
-
+    revalidatePath("/dashboard/biller/records");
     return { message: "Record updated successfully!" };
   } catch (err) {
-    console.error("Update failed:", err);
+    console.error("EditRecord error:", err);
     return { state_error: "Update failed. Please try again.", errors: {} };
   }
 }
@@ -635,7 +588,7 @@ export async function decideEditedRecord(
   formData: FormData
 ): Promise<RecordActionState> {
   const id = formData.get("id") as string;
-  const decision = formData.get("decision") as string; // "accept" or "reject"
+  const decision = formData.get("decision") as string;
   const comment = (formData.get("comment") as string) || null;
 
   if (!id || !decision || (decision !== "accept" && decision !== "reject")) {
@@ -643,8 +596,7 @@ export async function decideEditedRecord(
   }
 
   try {
-    // Fetch the EditedRecord row
-    const erRes = await pool.query<{
+    const erRes = await safeQuery<{
       recordId: number;
       ticket: string;
       recordType: string | null;
@@ -654,32 +606,30 @@ export async function decideEditedRecord(
       recordNumber: string | null;
       value: number;
     }>(
-      `SELECT
-         "recordId", ticket, "recordType", name, service,
-         "subService", "recordNumber", value
-       FROM "EditedRecord"
-       WHERE id = $1`,
+      `SELECT recordId, ticket, recordType, name, service,
+              subService, recordNumber, [value]
+       FROM EditedRecord
+       WHERE id = @p1`,
       [id]
     );
 
-    if (erRes.rows.length === 0) {
+    if (!erRes.rows.length) {
       return { state_error: "Edited record not found." };
     }
     const er = erRes.rows[0];
 
     if (decision === "accept") {
-      // 1) Apply edits to the main records table
-      await pool.query(
+      await safeQuery(
         `UPDATE records
-           SET ticket       = $1,
-               "recordType" = $2,
-               name         = $3,
-               service      = $4,
-               "subService" = $5,
-               "recordNumber" = $6,
-               value        = $7,
-               "updatedAt"  = NOW()
-         WHERE id = $8`,
+           SET ticket = @p1,
+               recordType = @p2,
+               name = @p3,
+               service = @p4,
+               subService = @p5,
+               recordNumber = @p6,
+               [value] = @p7,
+               updatedAt = GETDATE()
+         WHERE id = @p8`,
         [
           er.ticket,
           er.recordType,
@@ -692,30 +642,26 @@ export async function decideEditedRecord(
         ]
       );
 
-      // 2) Mark the EditedRecord as accepted
-      await pool.query(
-        `UPDATE "EditedRecord"
-           SET status  = 'accepted',
-               comment = $2,
-               "updatedAt" = NOW()
-         WHERE id = $1`,
+      await safeQuery(
+        `UPDATE EditedRecord
+           SET status = 'accepted',
+               comment = @p2,
+               updatedAt = GETDATE()
+         WHERE id = @p1`,
         [id, comment]
       );
     } else {
-      // Reject: just mark as rejected
-      await pool.query(
-        `UPDATE "EditedRecord"
-           SET status  = 'rejected',
-               comment = $2,
-               "updatedAt" = NOW()
-         WHERE id = $1`,
+      await safeQuery(
+        `UPDATE EditedRecord
+           SET status = 'rejected',
+               comment = @p2,
+               updatedAt = GETDATE()
+         WHERE id = @p1`,
         [id, comment]
       );
     }
 
-    // Revalidate the notifications / records listing page
     revalidatePath("/notifications");
-
     return { message: `Record ${decision}ed successfully.` };
   } catch (err) {
     console.error("decideEditedRecord error:", err);
@@ -723,9 +669,6 @@ export async function decideEditedRecord(
   }
 }
 
-/**
- * Handles updating the ticket value for a given record.
- */
 export async function updateTicket(
   _: RecordActionState,
   formData: FormData
@@ -733,22 +676,19 @@ export async function updateTicket(
   const id = formData.get("id");
   const ticket = formData.get("ticket") as string;
 
-  // Validate inputs
   if (!id || !ticket) {
     return { state_error: "Ticket value is required.", errors: {} };
   }
 
   try {
-    await pool.query(
+    await safeQuery(
       `UPDATE records
-       SET ticket = $1
-       WHERE id = $2`,
+         SET ticket = @p1
+       WHERE id = @p2`,
       [ticket, id]
     );
 
-    // Revalidate data on the relevant path
     revalidatePath("/dashboard/records");
-
     return { message: "Ticket updated successfully!" };
   } catch (err) {
     console.error("Failed to update ticket:", err);

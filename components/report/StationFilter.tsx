@@ -28,7 +28,9 @@ export default function StationFilter({ station }: StationFilterProps) {
     fetch("/api/settings/stations")
       .then((res) => res.json())
       .then((data) =>
-        setStations(data.items.map((s: { id: number; name: string }) => s.name))
+        setStations(
+          data?.items?.map((s: { id: number; name: string }) => s.name)
+        )
       );
   }, []);
 

@@ -4,7 +4,6 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { ProfileActionState, UserActionState } from "./definitions";
-import pool from "./db";
 import { randomBytes } from "crypto";
 import { sendMail } from "./loginActions";
 import { ArchiveUserSchema, UpdateSchema } from "./schemas";
@@ -13,21 +12,22 @@ import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs/promises";
 import { isDBError } from "./utils";
+import { safeQuery } from "./db"; // ✅ use safeQuery, not pool
 
+// Validation schema stays the same...
 const AddUserSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address"),
   station: z.string().nullable().optional(),
   shift: z.string().nullable().optional(),
   counter: z.string().nullable().optional(),
-  role: z.string().min(1, "Role is required"), // Assuming role is passed but not used in this action
+  role: z.string().min(1, "Role is required"),
 });
 
 export async function addUser(
   prevState: UserActionState,
   formData: FormData
 ): Promise<UserActionState> {
-  // Extract and parse fields
   const parsed = AddUserSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
@@ -38,120 +38,105 @@ export async function addUser(
   });
 
   if (!parsed.success) {
-    const fieldErrors = parsed.error.flatten().fieldErrors;
     return {
-      errors: fieldErrors,
+      errors: parsed.error.flatten().fieldErrors,
       message: "Please fix the errors below.",
     };
   }
 
   const { name, email, station, shift, counter, role } = parsed.data;
-
   let finalStation = station;
 
-  // For billers without station specified, fetch from logged-in user
   if (role === "biller" && !station) {
-    const userSession = await auth();
-    const userEmail = userSession?.user?.email || "";
-    if (!userEmail) {
-      return {
-        state_error: "You must be logged in to assign a station.",
-      };
-    }
+    const session = await auth();
+    const userEmail = session?.user?.email || "";
+    if (!userEmail)
+      return { state_error: "You must be logged in to assign a station." };
 
-    const userRes = await pool.query<{ station: string }>(
-      `SELECT station FROM "User" WHERE email = $1`,
+    const { rows } = await safeQuery<{ station: string }>(
+      `SELECT station FROM [User] WHERE email = $1`,
       [userEmail]
     );
 
-    if (!userRes.rows.length || !userRes.rows[0].station) {
+    if (!rows.length || !rows[0].station) {
       return {
         state_error: "Your account has no associated station. Contact admin.",
       };
     }
 
-    finalStation = userRes.rows[0].station;
+    finalStation = rows[0].station;
   }
 
   try {
-    // 1. Check for existing user
-    const existing = await pool.query<{ id: number }>(
-      `SELECT id FROM "User" WHERE email = $1`,
+    // 1. Check existing
+    const existing = await safeQuery<{ id: number }>(
+      `SELECT id FROM [User] WHERE email = $1`,
       [email]
     );
     if (existing.rows.length) {
       return {
-        errors: { email: [`A user with this email ${email} already exists.`] },
+        errors: { email: [`User with email ${email} already exists.`] },
       };
     }
 
-    // 2. Resolve FK IDs
+    // 2. Resolve FKs
     const [shiftRes, stationRes, counterRes] = await Promise.all([
-      pool.query<{ id: number }>(`SELECT id FROM shifts WHERE name = $1`, [
-        shift,
-      ]),
-      pool.query<{ id: number }>(`SELECT id FROM stations WHERE name = $1`, [
-        finalStation,
-      ]),
-      pool.query<{ id: number }>(`SELECT id FROM counters WHERE name = $1`, [
-        counter,
-      ]),
+      shift
+        ? safeQuery<{ id: number }>(`SELECT id FROM shifts WHERE name = $1`, [
+            shift,
+          ])
+        : Promise.resolve({ rows: [] }),
+      finalStation
+        ? safeQuery<{ id: number }>(`SELECT id FROM stations WHERE name = $1`, [
+            finalStation,
+          ])
+        : Promise.resolve({ rows: [] }),
+      counter
+        ? safeQuery<{ id: number }>(`SELECT id FROM counters WHERE name = $1`, [
+            counter,
+          ])
+        : Promise.resolve({ rows: [] }),
     ]);
 
-    if (shift && !shiftRes.rows.length) {
+    if (shift && !shiftRes.rows.length)
       return { errors: { shift: [`Shift "${shift}" not found`] } };
-    }
-    if (finalStation && !stationRes.rows.length) {
+    if (finalStation && !stationRes.rows.length)
       return { errors: { station: [`Station "${finalStation}" not found`] } };
-    }
-    if (counter && !counterRes.rows.length) {
+    if (counter && !counterRes.rows.length)
       return { errors: { counter: [`Counter "${counter}" not found`] } };
-    }
 
-    const shiftId = shiftRes.rows[0] ? shiftRes.rows[0].id : null;
-    const stationId = stationRes.rows[0] ? stationRes.rows[0].id : null;
-    const counterId = counterRes.rows[0] ? counterRes.rows[0].id : null;
+    const shiftId = shiftRes.rows[0]?.id ?? null;
+    const stationId = stationRes.rows[0]?.id ?? null;
+    const counterId = counterRes.rows[0]?.id ?? null;
 
-    // 3. Generate invite token
+    // 3. Token + expiry
     const token = randomBytes(32).toString("hex");
-    const expires = new Date(Date.now() + 24 * 3600 * 1000); // 24h
+    const expires = new Date(Date.now() + 24 * 3600 * 1000);
 
-    // 5. Send email
+    // 4. Insert new user (MSSQL syntax)
+    const insertRes = await safeQuery<{ id: number }>(
+      `INSERT INTO [User] 
+        (name, email, shiftId, stationId, counterId, role, password_reset_token, password_reset_expires)
+       OUTPUT INSERTED.id
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [name, email, shiftId, stationId, counterId, role, token, expires]
+    );
+    const newUserId = insertRes.rows[0].id;
+
+    // 5. Email
     const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password?token=${token}`;
-
-    /// Needs a big refactor for error handling
     const sendResetUrl = await sendMail(resetUrl, email, name);
-
     if (sendResetUrl === "Failed") {
       return {
-        state_error:
-          "Error validating the email. Check your internet connection or the email is not valid!",
+        state_error: "User created, but email failed. Check email settings.",
       };
     }
 
-    // 4. Insert new user
-    const insertRes = await pool.query<{ id: number }>(
-      `INSERT INTO "User" 
-         (name, email, "shiftId", "stationId", "counterId", role, "password_reset_token", "password_reset_expires")
-       VALUES 
-         ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id`,
-      [name, email, shiftId, stationId, counterId, role, token, expires]
-    );
-
-    const newUserId = insertRes.rows[0].id;
-
-    // 6. Revalidate dashboard
     revalidatePath("/dashboard");
-
-    return {
-      message: `User #${newUserId} added successfully!`,
-    };
+    return { message: `User #${newUserId} added successfully!` };
   } catch (err) {
     console.error("Error creating user:", err);
-    return {
-      state_error: "There was an unexpected error. Please try again.",
-    };
+    return { state_error: "Unexpected error. Please try again." };
   }
 }
 
@@ -169,7 +154,7 @@ export async function updateUser(
   prevState: UserActionState,
   formData: FormData
 ): Promise<UserActionState> {
-  // 2. Parse & validate
+  // 1. Parse & validate
   const parsed = UpdateUserSchema.safeParse({
     userId: formData.get("userId"),
     name: formData.get("name"),
@@ -185,7 +170,7 @@ export async function updateUser(
 
   const { userId, name, station, shift, counter, role } = parsed.data;
 
-  // 3. If biller & no station provided, inherit from current user
+  // 2. If biller & no station provided, inherit from current user
   let finalStation = station;
   if (role === "biller" && !station) {
     const session = await auth();
@@ -193,15 +178,15 @@ export async function updateUser(
     if (!you) {
       return { state_error: "Must be signed in to assign station." };
     }
-    const me = await pool.query<{ station: string }>(
+
+    const me = await safeQuery<{ station: string }>(
       `
-        SELECT
+        SELECT TOP 1
           st.name AS station
-        FROM "User" u
+        FROM [User] u
         LEFT JOIN stations st
-          ON u."stationId" = st.id
+          ON u.[stationId] = st.id
         WHERE u.email = $1
-        LIMIT 1
       `,
       [you]
     );
@@ -213,20 +198,20 @@ export async function updateUser(
   }
 
   try {
-    // 4. Resolve FK ids
+    // 3. Resolve FK ids
     const [shiftRes, stationRes, counterRes] = await Promise.all([
       shift
-        ? pool.query<{ id: number }>(`SELECT id FROM shifts WHERE name=$1`, [
+        ? safeQuery<{ id: number }>(`SELECT id FROM shifts WHERE name=$1`, [
             shift,
           ])
         : Promise.resolve({ rows: [] }),
       finalStation
-        ? pool.query<{ id: number }>(`SELECT id FROM stations WHERE name=$1`, [
+        ? safeQuery<{ id: number }>(`SELECT id FROM stations WHERE name=$1`, [
             finalStation,
           ])
         : Promise.resolve({ rows: [] }),
       counter
-        ? pool.query<{ id: number }>(`SELECT id FROM counters WHERE name=$1`, [
+        ? safeQuery<{ id: number }>(`SELECT id FROM counters WHERE name=$1`, [
             counter,
           ])
         : Promise.resolve({ rows: [] }),
@@ -246,30 +231,30 @@ export async function updateUser(
     const stationId = stationRes.rows[0]?.id ?? null;
     const counterId = counterRes.rows[0]?.id ?? null;
 
-    // 5. Build dynamic SET clause
+    // 4. Build dynamic SET clause
     const sets: string[] = [`name = $2`, `role = $3`];
     const params: (number | string | null)[] = [userId, name, role];
 
     if (shift !== undefined) {
-      sets.push(`"shiftId" = $${params.length + 1}`);
+      sets.push(`[shiftId] = $${params.length + 1}`);
       params.push(shiftId);
     }
     if (finalStation !== undefined) {
-      sets.push(`"stationId" = $${params.length + 1}`);
+      sets.push(`[stationId] = $${params.length + 1}`);
       params.push(stationId);
     }
     if (counter !== undefined) {
-      sets.push(`"counterId" = $${params.length + 1}`);
+      sets.push(`[counterId] = $${params.length + 1}`);
       params.push(counterId);
     }
 
-    // 6. Execute update
-    await pool.query(
-      `UPDATE "User" SET ${sets.join(", ")} WHERE id = $1`,
+    // 5. Execute update
+    await safeQuery(
+      `UPDATE [User] SET ${sets.join(", ")} WHERE id = $1`,
       params
     );
 
-    // 7. Revalidate listing
+    // 6. Revalidate listing
     revalidatePath("/dashboard");
 
     return { message: "User updated successfully!" };
@@ -307,18 +292,17 @@ export async function updateProfile(
     return { state_error: "Not authenticated." };
   }
 
-  // 1) Load existing image URL from the DB
-  const { rows } = await pool.query<{ image: string | null }>(
-    `SELECT image FROM "User" WHERE email = $1`,
+  // 3) Load existing image URL from the DB
+  const { rows } = await safeQuery<{ image: string | null }>(
+    `SELECT image FROM [User] WHERE email = $1`,
     [email]
   );
 
   const oldImage = rows[0]?.image;
 
-  // 3) Handle avatar upload, if any
+  // 4) Handle avatar upload, if any
   let imageUrl = oldImage;
   if (image && image.size > 0) {
-    // ensure uploads dir exists under public/images
     const uploadDir = path.join(process.cwd(), "public", "images", "uploads");
 
     // delete old file if it’s in our uploads folder
@@ -327,7 +311,7 @@ export async function updateProfile(
       try {
         await fs.unlink(oldFile);
       } catch {
-        /* swallow not-found errors */
+        /* ignore missing file */
       }
     }
 
@@ -343,7 +327,7 @@ export async function updateProfile(
     imageUrl = `/images/uploads/${fileName}`;
   }
 
-  // 4) Build SQL
+  // 5) Build SQL
   const setClauses: string[] = [];
   const params: (string | null)[] = [email]; // $1
 
@@ -364,16 +348,16 @@ export async function updateProfile(
     params.push(hash);
   }
 
-  // 5) Execute
+  // 6) Execute
   try {
     const sql = `
-      UPDATE "User"
+      UPDATE [User]
          SET ${setClauses.join(", ")}
        WHERE email = $1
     `;
-    await pool.query(sql, params);
+    await safeQuery(sql, params);
 
-    // 6) Revalidate and respond
+    // 7) Revalidate and respond
     revalidatePath("/profile");
     return { message: "Profile updated successfully!" };
   } catch (err) {
@@ -400,9 +384,10 @@ export async function archiveUser(
   const { userId } = parsed.data;
   try {
     // soft-delete: set status to 'archived'
-    await pool.query(`UPDATE "User" SET status = 'archived' WHERE id = $1`, [
+    await safeQuery(`UPDATE [User] SET status = 'archived' WHERE id = $1`, [
       userId,
     ]);
+
     // revalidate any pages showing users
     revalidatePath("/dashboard");
     return { message: "User archived." };
@@ -429,13 +414,13 @@ export async function activateUser(
   }
 
   try {
-    const result = await pool.query(
-      `UPDATE "User" SET status = NULL WHERE id = $1`,
+    const { rows } = await safeQuery(
+      `UPDATE [User] SET status = NULL WHERE id = $1`,
       [userId]
     );
 
-    if (result.rowCount === 0) {
-      // No rows updated → probably invalid id
+    // NOTE: mssql doesn’t return rowCount in this wrapper, so infer success by affected rows
+    if (rows.length === 0) {
       return {
         state_error: "User not found or already active.",
         errors: {},
@@ -453,13 +438,8 @@ export async function activateUser(
     };
   } catch (err: unknown) {
     console.error("activateUser error:", err);
-    const state_error =
-      isDBError(err) && err.code === "23503"
-        ? "Cannot activate this user due to referential integrity."
-        : "Failed to activate user. Please try again later.";
-
     return {
-      state_error,
+      state_error: "Failed to activate user. Please try again later.",
       errors: {},
       message: null,
     };

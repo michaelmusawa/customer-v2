@@ -50,13 +50,15 @@ export default function AddUserModal({
     fetch("/api/settings/stations")
       .then((res) => res.json())
       .then((data) =>
-        setStations(data.items.map((s: { id: number; name: string }) => s.name))
+        setStations(
+          data?.items?.map((s: { id: number; name: string }) => s.name)
+        )
       );
 
     fetch("/api/settings/shifts")
       .then((res) => res.json())
       .then((data) =>
-        setShifts(data.items.map((s: { id: number; name: string }) => s.name))
+        setShifts(data?.items?.map((s: { id: number; name: string }) => s.name))
       );
   }, []);
 

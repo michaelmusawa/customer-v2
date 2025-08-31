@@ -15,6 +15,7 @@ import type { SettingActionState } from "./definitions";
 import { auth } from "@/auth";
 import { getUser } from "./loginActions";
 import { isDBError } from "./utils";
+import { safeQuery } from "./db";
 
 /**
  * Handles creation of a new setting entry.
@@ -22,6 +23,7 @@ import { isDBError } from "./utils";
  * - shifts/counters → INSERT into shifts or counters, tied to a station
  * - stations → INSERT into stations
  */
+
 export async function addSetting(
   prev: SettingActionState,
   formData: FormData
@@ -31,18 +33,15 @@ export async function addSetting(
     | "shifts"
     | "counters"
     | "stations";
-  // optional station context (for shifts & counters)
   const station = (formData.get("station") as string) || null;
   const shift = formData.get("shift") as string;
 
-  // parse inputs
   let parsed;
   if (type === "services") {
     const name = formData.get("name");
     const subservices = formData.getAll("subservices");
     parsed = AddSettingSchema.safeParse({ type, name, subservices });
   } else {
-    // for non-services we expect: value + (maybe) station
     const value = formData.get("value");
     parsed = AddSettingSchema.safeParse({ type, value, station });
   }
@@ -55,31 +54,26 @@ export async function addSetting(
   }
 
   try {
-    // -- SERVICES --
     if (parsed.data.type === "services") {
       const { name, subservices } = parsed.data;
-      // 1) create service
-      const svcRes = await pool.query<{ id: number }>(
-        `INSERT INTO services (name) VALUES ($1) RETURNING id`,
+      const svcRes = await safeQuery<{ id: number }>(
+        `INSERT INTO services (name) OUTPUT INSERTED.id VALUES ($1)`,
         [name.trim()]
       );
       const serviceId = svcRes.rows[0].id;
-      // 2) batch insert its subservices
+
       if (subservices.length) {
         const placeholders = subservices
           .map((_, i) => `($1, $${i + 2})`)
           .join(",");
-        await pool.query(
+        await safeQuery(
           `INSERT INTO subservices (service_id, name) VALUES ${placeholders}`,
           [serviceId, ...subservices.map((s) => s.trim())]
         );
       }
-
-      // -- SHIFTS --
     } else if (parsed.data.type === "shifts") {
       const { value } = parsed.data;
-      // must supply station
-      await pool.query(
+      await safeQuery(
         `
         INSERT INTO shifts (name, "stationId")
         VALUES (
@@ -89,49 +83,38 @@ export async function addSetting(
         `,
         [value.trim(), station!]
       );
-
-      // -- COUNTERS --
     } else if (parsed.data.type === "counters") {
       const { value } = parsed.data;
-      // we have both `shift` and `station` from the formData
-      await pool.query(
+      await safeQuery(
         `
         INSERT INTO counters (name, "shiftId")
         VALUES (
           $1,
           (
-            SELECT s.id
+            SELECT TOP 1 s.id
               FROM shifts s
               JOIN stations st ON s."stationId" = st.id
              WHERE s.name = $2
                AND st.name = $3
-             LIMIT 1
           )
         )
         `,
-        [
-          value.trim(), // $1 → new counter name
-          shift!, // $2 → shift name
-          station!, // $3 → station name
-        ]
+        [value.trim(), shift!, station!]
       );
-
-      // -- STATIONS --
     } else if (parsed.data.type === "stations") {
       const { value } = parsed.data;
-      await pool.query(`INSERT INTO stations (name) VALUES ($1)`, [
+      await safeQuery(`INSERT INTO stations (name) VALUES ($1)`, [
         value.trim(),
       ]);
     }
 
-    // revalidate the settings page
     revalidatePath("/settings");
     return { message: "Added successfully!" };
   } catch (err: unknown) {
     console.error("addSetting error:", err);
 
     const state_error =
-      isDBError(err) && err.code === "23505"
+      isDBError(err) && (err as any).code === "23505"
         ? "That entry already exists."
         : "Unexpected error. Please try again.";
 
@@ -139,20 +122,13 @@ export async function addSetting(
   }
 }
 
-/**
- * Get all entries of a given type.
- * - services & stations: global
- * - shifts & counters: scoped to the logged‑in user's station
- */
 export async function getSettings(
   type: "services" | "stations" | "shifts" | "counters"
 ): Promise<{ id: number; name: string }[]> {
-  // 1) find the logged‑in user
   const session = await auth();
   const email = session?.user?.email;
   const me = email ? await getUser(email) : null;
 
-  // if we don't have a station context, we'll fall back to no filtering
   const stationName = me?.station ?? null;
 
   let sql: string;
@@ -171,7 +147,6 @@ export async function getSettings(
         `;
         params = [stationName];
       } else {
-        // no station → nothing to show
         return [];
       }
       break;
@@ -196,19 +171,16 @@ export async function getSettings(
     case "services":
     case "stations":
     default:
-      // global lists
       sql = `SELECT id, name FROM ${type} ORDER BY name`;
       break;
   }
 
-  const { rows } = await pool.query<{ id: number; name: string }>(sql, params);
+  const { rows } = await safeQuery<{ id: number; name: string }>(sql, params);
   return rows;
 }
-/**
- * Given a service name, fetch its subservices.
- */
+
 export async function getSubservices(serviceName: string): Promise<string[]> {
-  const { rows } = await pool.query<{ name: string }>(
+  const { rows } = await safeQuery<{ name: string }>(
     `
     SELECT ss.name
       FROM services s
@@ -221,27 +193,18 @@ export async function getSubservices(serviceName: string): Promise<string[]> {
   return rows.map((r) => r.name);
 }
 
-/**
- * List of all services.
- * (Sometimes you may fetch just service names without subservices.)
- */
 export async function getServices(): Promise<string[]> {
-  const { rows } = await pool.query<{ name: string }>(
+  const { rows } = await safeQuery<{ name: string }>(
     `SELECT name FROM services ORDER BY name ASC`
   );
   return rows.map((r) => r.name);
 }
 
-/**
- * For a given station & shift, return the counters *not yet* assigned.
- */
 export async function getAvailableCounters(
   station: string,
   shift: string
 ): Promise<string[]> {
-  // 1) Get all counters defined for this shift (and station, if you want to scope by station too)
-  //    Assuming shifts table has a stationId FK; if not, you can omit station scoping here.
-  const allRes = await pool.query<{ name: string }>(
+  const allRes = await safeQuery<{ name: string }>(
     `
     SELECT c.name
       FROM counters c
@@ -255,8 +218,7 @@ export async function getAvailableCounters(
   );
   const allNames = allRes.rows.map((r) => r.name);
 
-  // 2) Find which of those are already assigned to a user at that station+shift
-  const takenRes = await pool.query<{ name: string }>(
+  const takenRes = await safeQuery<{ name: string }>(
     `
     SELECT c2.name
       FROM "User" u
@@ -270,7 +232,6 @@ export async function getAvailableCounters(
   );
   const taken = new Set(takenRes.rows.map((r) => r.name));
 
-  // 3) Return only those counters that are defined for the shift but not yet taken
   return allNames.filter((c) => !taken.has(c));
 }
 
@@ -281,18 +242,13 @@ export async function getGroupedCounters(): Promise<
     counters: { id: number; name: string }[];
   }[]
 > {
-  // 1) Figure out the logged‐in user and their station
   const session = await auth();
   const email = session?.user?.email;
   const me = email ? await getUser(email) : null;
   const stationName = me?.station;
-  if (!stationName) {
-    // No station → no counters
-    return [];
-  }
+  if (!stationName) return [];
 
-  // 2) Query only those shifts/counters for that station
-  const { rows } = await pool.query<{
+  const { rows } = await safeQuery<{
     shift_id: number;
     shift_name: string;
     counter_id: number;
@@ -313,8 +269,7 @@ export async function getGroupedCounters(): Promise<
     [stationName]
   );
 
-  // 3) Group them in memory
-  const grouped = rows.reduce<
+  return rows.reduce<
     {
       shift: { id: number; name: string };
       counters: { id: number; name: string }[];
@@ -331,16 +286,14 @@ export async function getGroupedCounters(): Promise<
     grp.counters.push({ id: row.counter_id, name: row.counter_name });
     return acc;
   }, []);
-
-  return grouped;
 }
-// Add these new functions:
+
 export async function getSettingDetails(
   type: "stations" | "shifts" | "counters" | "services",
   id: number
 ): Promise<{ id: number; name: string } | null> {
   try {
-    const { rows } = await pool.query(
+    const { rows } = await safeQuery<{ id: number; name: string }>(
       `SELECT id, name FROM ${type} WHERE id = $1`,
       [id]
     );
@@ -366,7 +319,7 @@ export async function updateSetting(
   const { type, id, newName } = result.data;
 
   try {
-    await pool.query(`UPDATE ${type} SET name = $1 WHERE id = $2`, [
+    await safeQuery(`UPDATE ${type} SET name = $1 WHERE id = $2`, [
       newName.trim(),
       id,
     ]);
@@ -374,13 +327,7 @@ export async function updateSetting(
     return { message: "Updated successfully!" };
   } catch (err: unknown) {
     console.error("updateSetting error:", err);
-
-    const state_error =
-      isDBError(err) && err.code === "23505"
-        ? "That name already exists."
-        : "Unexpected error. Please try again.";
-
-    return { state_error };
+    return { state_error: "Unexpected error. Please try again." };
   }
 }
 
@@ -399,85 +346,62 @@ export async function deleteSetting(
   const { type, id } = result.data;
 
   try {
-    // check in-use constraints...
     let inUse = false;
     if (type === "stations") {
-      const r = await pool.query(
-        `SELECT 1 FROM "User" WHERE "stationId" = $1 LIMIT 1`,
+      const { rows } = await safeQuery(
+        `SELECT 1 AS one FROM "User" WHERE "stationId" = $1`,
         [id]
       );
-      inUse = r.rowCount !== null && r.rowCount > 0;
+      inUse = rows.length > 0;
     } else if (type === "shifts") {
-      const r = await pool.query(
-        `SELECT 1 FROM counters WHERE "shiftId" = $1 LIMIT 1`,
+      const { rows } = await safeQuery(
+        `SELECT 1 AS one FROM counters WHERE "shiftId" = $1`,
         [id]
       );
-      inUse = r.rowCount !== null && r.rowCount > 0;
+      inUse = rows.length > 0;
     } else if (type === "counters") {
-      const r = await pool.query(
-        `SELECT 1 FROM "User" WHERE "counterId" = $1 LIMIT 1`,
+      const { rows } = await safeQuery(
+        `SELECT 1 AS one FROM "User" WHERE "counterId" = $1`,
         [id]
       );
-      inUse = (r.rowCount ?? 0) > 0;
+      inUse = rows.length > 0;
     } else if (type === "services") {
-      // prevent deleting a service that has subservices in use
-      const r = await pool.query(
-        `SELECT 1 FROM tickets WHERE "serviceId" IN (
-          SELECT id FROM subservices WHERE service_id = $1
-        ) LIMIT 1`,
+      const { rows } = await safeQuery(
+        `SELECT 1 AS one FROM tickets WHERE "serviceId" IN (
+           SELECT id FROM subservices WHERE service_id = $1
+         )`,
         [id]
       );
-      inUse = (r.rowCount ?? 0) > 0;
+      inUse = rows.length > 0;
     }
 
     if (inUse) {
       return { state_error: "Cannot delete because it is in use." };
     }
 
-    await pool.query(`DELETE FROM ${type} WHERE id = $1`, [id]);
+    await safeQuery(`DELETE FROM ${type} WHERE id = $1`, [id]);
     revalidatePath("/settings");
     return { message: "Deleted successfully!" };
   } catch (err: unknown) {
     console.error("deleteSetting error:", err);
-
-    // You could branch on specific err.code here if needed:
-    // if (isDBError(err) && err.code === "23503") { ... }
-
-    return {
-      state_error: "Unexpected error. Please try again.",
-    };
+    return { state_error: "Unexpected error. Please try again." };
   }
 }
 
-// Add these new functions:
 export async function updateService(
   id: number,
   newName: string
 ): Promise<{ error?: string; message?: string }> {
   try {
-    await pool.query("BEGIN");
-
-    // Update service name
-    await pool.query(`UPDATE services SET name = $1 WHERE id = $2`, [
+    await safeQuery(`UPDATE services SET name = $1 WHERE id = $2`, [
       newName.trim(),
       id,
     ]);
-
-    // Keep subservices as is (no changes to subservices in this update)
-
-    await pool.query("COMMIT");
     revalidatePath("/settings");
     return { message: "Service updated successfully!" };
   } catch (err: unknown) {
-    await pool.query("ROLLBACK");
     console.error("updateService error:", err);
-
-    const errorMessage =
-      isDBError(err) && err.code === "23505"
-        ? "A service with that name already exists."
-        : "Unexpected error. Please try again.";
-
-    return { error: errorMessage };
+    return { error: "Unexpected error. Please try again." };
   }
 }
 
@@ -496,7 +420,7 @@ export async function updateSubservice(
   const { serviceId, oldName, newName } = parsed.data;
 
   try {
-    await pool.query(
+    await safeQuery(
       `UPDATE subservices
          SET name = $1
        WHERE service_id = $2 AND name = $3`,
@@ -506,13 +430,7 @@ export async function updateSubservice(
     return { message: "Updated successfully!" };
   } catch (err: unknown) {
     console.error("updateSubservice error:", err);
-
-    const state_error =
-      isDBError(err) && err.code === "23505"
-        ? "A sub-service with that name already exists."
-        : "Unexpected error. Please try again.";
-
-    return { state_error };
+    return { state_error: "Unexpected error. Please try again." };
   }
 }
 
@@ -531,7 +449,7 @@ export async function deleteSubservice(
   const { serviceId, name } = parsed.data;
 
   try {
-    await pool.query(
+    await safeQuery(
       `DELETE FROM subservices
        WHERE service_id = $1 AND name = $2`,
       [serviceId, name]
@@ -548,7 +466,6 @@ export async function addSubservice(
   prev: SettingActionState,
   formData: FormData
 ): Promise<SettingActionState> {
-  // parse + validate
   const parsed = AddSubserviceSchema.safeParse(
     Object.fromEntries(formData.entries())
   );
@@ -561,18 +478,16 @@ export async function addSubservice(
   const { serviceName, subservice } = parsed.data;
 
   try {
-    // find service ID
-    const svcRes = await pool.query<{ id: number }>(
+    const { rows } = await safeQuery<{ id: number }>(
       `SELECT id FROM services WHERE name = $1`,
       [serviceName]
     );
-    if (!svcRes.rowCount) {
+    if (!rows.length) {
       return { state_error: "Service not found." };
     }
-    const serviceId = svcRes.rows[0].id;
+    const serviceId = rows[0].id;
 
-    // insert new subservice
-    await pool.query(
+    await safeQuery(
       `INSERT INTO subservices (service_id, name) VALUES ($1, $2)`,
       [serviceId, subservice.trim()]
     );
@@ -581,12 +496,6 @@ export async function addSubservice(
     return { message: "Sub-service added!" };
   } catch (err: unknown) {
     console.error("addSubservice error:", err);
-
-    const state_error =
-      isDBError(err) && err.code === "23505"
-        ? "That sub-service already exists."
-        : "Unexpected error.";
-
-    return { state_error };
+    return { state_error: "Unexpected error." };
   }
 }

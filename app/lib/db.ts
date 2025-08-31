@@ -1,5 +1,5 @@
 // lib/db.ts
-import { ConnectionPool, config as MSSQLConfig } from "mssql";
+import sql from "mssql";
 
 export class DatabaseError extends Error {
   constructor(message = "Database is unreachable") {
@@ -8,66 +8,40 @@ export class DatabaseError extends Error {
   }
 }
 
-/**
- * Build pool config from env vars.
- */
-const poolConfig: MSSQLConfig = {
+const pool = new sql.ConnectionPool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  server: process.env.DB_SERVER || "localhost",
+  server: process.env.DB_SERVER as string,
   database: process.env.DB_NAME,
-  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 1433,
   options: {
-    encrypt: process.env.DB_ENCRYPT === "true", // set true for Azure
-    trustServerCertificate: process.env.DB_TRUST_SERVER_CERT === "true", // dev: true, prod: false ideally
+    encrypt: false, // set true if using Azure or SSL
+    trustServerCertificate: true, // allow self-signed certs in dev
   },
-};
+});
 
-const pool = new ConnectionPool(poolConfig);
 const poolConnect = pool.connect().catch((err) => {
-  console.error("MSSQL pool connection failed:", err);
+  console.error("Database connection failed:", err);
   throw new DatabaseError();
 });
 
-pool.on("error", (err) => {
-  console.error("Unexpected MSSQL pool error", err);
-});
-
-/**
- * A simple safeQuery wrapper:
- * - `text` should be valid T-SQL (use @param names in SQL)
- * - `params` may be either:
- *    • an object of named params: { id: 1, name: "x" } → binds @id, @name
- *    • an array of positional values: [v1, v2] → binds @p1, @p2 ...
- *
- * Example (named):
- *   await safeQuery("SELECT * FROM Users WHERE id = @id", { id: 5 });
- *
- * Example (positional):
- *   await safeQuery("SELECT * FROM Users WHERE id = @p1 AND status = @p2", [5, 'active']);
- */
+// Safe query wrapper (same shape as before)
 export async function safeQuery<T = any>(
   text: string,
-  params: Record<string, unknown> | unknown[] = {}
+  params: unknown[] = []
 ): Promise<{ rows: T[] }> {
   try {
     await poolConnect;
+
     const request = pool.request();
+    params.forEach((param, i) => {
+      request.input(`p${i + 1}`, param as any);
+    });
 
-    if (Array.isArray(params)) {
-      params.forEach((value, i) => {
-        request.input(`p${i + 1}`, value as any);
-      });
-    } else {
-      for (const [key, value] of Object.entries(params)) {
-        // allow callers to pass either "id" or "@id" as the key
-        const paramName = key.startsWith("@") ? key.slice(1) : key;
-        request.input(paramName, value as any);
-      }
-    }
+    const result = await request.query<T>(
+      text.replace(/\$(\d+)/g, (_, i) => `@p${i}`) // convert $1, $2 → @p1, @p2
+    );
 
-    const result = await request.query(text);
-    return { rows: (result.recordset || []) as T[] };
+    return { rows: result.recordset };
   } catch (err: unknown) {
     console.error("DB query failed:", err);
     throw new DatabaseError();

@@ -1,6 +1,6 @@
 // app/api/records/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/app/lib/db";
+import { safeQuery } from "@/app/lib/db";
 import bcrypt from "bcryptjs";
 import { ExternalRecordSchema } from "@/app/lib/schemas";
 import z from "zod";
@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
       400
     );
   }
+
   const {
     ticket,
     recordType,
@@ -67,13 +68,14 @@ export async function POST(req: NextRequest) {
 
   try {
     // 3. Fetch user id and stored token hash
-    const userRes = await pool.query<{ id: number; token: string | null }>(
+    const userRes = await safeQuery<{ id: number; token: string | null }>(
       `SELECT id, token
        FROM "User"
        WHERE email = $1
        LIMIT 1`,
       [userEmail]
     );
+
     if (userRes.rows.length === 0) {
       return withCors({ error: "Unknown userEmail" }, 404);
     }
@@ -90,7 +92,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Insert the new record
-    const insertRes = await pool.query<{ id: number }>(
+    const insertRes = await safeQuery<{ id: number }>(
       `INSERT INTO records
          ( ticket,
            "recordType",
@@ -113,7 +115,6 @@ export async function POST(req: NextRequest) {
         subService ?? null,
         recordNumber ?? null,
         value,
-        // pass a JS Date instance for createdAt:
         date ? new Date(date) : new Date(),
         userId,
       ]
