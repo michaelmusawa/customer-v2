@@ -11,7 +11,6 @@ import { auth } from "@/auth";
 import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs/promises";
-import { isDBError } from "./utils";
 import { safeQuery } from "./db"; // ✅ use safeQuery, not pool
 
 // Validation schema stays the same...
@@ -113,6 +112,17 @@ export async function addUser(
     const token = randomBytes(32).toString("hex");
     const expires = new Date(Date.now() + 24 * 3600 * 1000);
 
+    // 5. Send email
+    const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password?token=${token}`;
+    const mailResult = await sendMail(resetUrl, email, name);
+
+    if (!mailResult.success) {
+      console.error("Email error:", mailResult.message);
+      return {
+        state_error: mailResult.message,
+      };
+    }
+
     // 4. Insert new user (MSSQL syntax)
     const insertRes = await safeQuery<{ id: number }>(
       `INSERT INTO [User] 
@@ -123,20 +133,11 @@ export async function addUser(
     );
     const newUserId = insertRes.rows[0].id;
 
-    // 5. Email
-    const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/reset-password?token=${token}`;
-    const sendResetUrl = await sendMail(resetUrl, email, name);
-    if (sendResetUrl === "Failed") {
-      return {
-        state_error: "User created, but email failed. Check email settings.",
-      };
-    }
-
     revalidatePath("/dashboard");
     return { message: `User #${newUserId} added successfully!` };
   } catch (err) {
     console.error("Error creating user:", err);
-    return { state_error: "Unexpected error. Please try again." };
+    return { state_error: "There was an unexpected error. Please try again." };
   }
 }
 
