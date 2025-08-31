@@ -81,23 +81,15 @@ export async function authenticate(_state: unknown, formData: FormData) {
 
     if (!user) return "Invalid credentials.";
 
-    // if (!user.password) {
-    //   return "Your account is not fully set up. Please check your email for the activation link or contact your supervisor.";
-    // }
-
-    // const match = await bcrypt.compare(password, user.password);
-    // if (match) return "Invalid credentials.";
-    // if (user.status === "archived") {
-    //   return "Your account is disabled! Contact your supervisor for activation.";
-    // }
-
-    // To be fixed later
-
-    if (user.password) {
+    if (!user.password) {
       return "Your account is not fully set up. Please check your email for the activation link or contact your supervisor.";
     }
 
-    // Upto here
+    const match = await bcrypt.compare(password, user.password);
+    if (match) return "Invalid credentials.";
+    if (user.status === "archived") {
+      return "Your account is disabled! Contact your supervisor for activation.";
+    }
 
     const res = await signIn("credentials", {
       email,
