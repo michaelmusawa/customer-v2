@@ -69,10 +69,9 @@ export async function POST(req: NextRequest) {
   try {
     // 3. Fetch user id and stored token hash
     const userRes = await safeQuery<{ id: number; token: string | null }>(
-      `SELECT id, token
-       FROM "User"
-       WHERE email = $1
-       LIMIT 1`,
+      `SELECT TOP 1 id, token
+       FROM [User]
+       WHERE email = $1`,
       [userEmail]
     );
 
@@ -91,22 +90,21 @@ export async function POST(req: NextRequest) {
       return withCors({ error: "Invalid token" }, 401);
     }
 
-    // 5. Insert the new record
+    // 5. Insert the new record (SQL Server < 2012: use OUTPUT INSERTED.id)
     const insertRes = await safeQuery<{ id: number }>(
       `INSERT INTO records
-         ( ticket,
-           "recordType",
-           name,
-           service,
-           "subService",
-           "recordNumber",
-           value,
-           "createdAt",
-           "userId"
-         )
+         (ticket,
+          recordType,
+          name,
+          service,
+          subService,
+          recordNumber,
+          value,
+          createdAt,
+          userId)
+       OUTPUT INSERTED.id
        VALUES
-         ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING id`,
+         ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         ticket,
         recordType ?? null,
