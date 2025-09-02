@@ -209,7 +209,7 @@ export function extractFields(
 }
 
 // === helper: map a row to your invoice-fields shape ===
-interface ExcelRow {
+export interface ExcelRow {
   "Customer Name"?: string;
   "Invoice No"?: string;
   "Total Amount": string;

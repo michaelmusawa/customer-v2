@@ -4,6 +4,7 @@ import { safeQuery } from "@/app/lib/db";
 import bcrypt from "bcryptjs";
 import { fetchFilteredRecords } from "@/app/lib/recordsActions";
 import {
+  ExcelRow,
   ExtractedFields,
   extractExcelFields,
   extractFields,
@@ -69,7 +70,23 @@ export async function POST(req: NextRequest) {
         );
       }
       for (const row of payload.content) {
-        const fields = extractExcelFields(row as any);
+        const excelRow: ExcelRow = {
+          "Customer Name":
+            typeof row["Customer Name"] === "string"
+              ? row["Customer Name"]
+              : undefined,
+          "Invoice No":
+            typeof row["Invoice No"] === "string"
+              ? row["Invoice No"]
+              : undefined,
+          "Total Amount":
+            typeof row["Total Amount"] === "string" ? row["Total Amount"] : "",
+          "House/Stall No.":
+            typeof row["House/Stall No."] === "string"
+              ? row["House/Stall No."]
+              : undefined,
+        };
+        const fields = extractExcelFields(excelRow);
         // optionally match subservice/service with DB here too
         validate(fields);
         records.push(fields);
