@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
       records.push(fields);
     } else if (payload.type === "excel") {
       if (!Array.isArray(payload.content)) {
+        console.log("Excel content is not an array:", payload.content);
         return withCors(
           { error: "Excel content must be an array of rows" },
           400
@@ -80,7 +81,12 @@ export async function POST(req: NextRequest) {
               ? row["Invoice No"]
               : undefined,
           "Total Amount":
-            typeof row["Total Amount"] === "string" ? row["Total Amount"] : "",
+            typeof row["Total Amount"] === "number"
+              ? row["Total Amount"].toString()
+              : typeof row["Total Amount"] === "string"
+              ? row["Total Amount"]
+              : "",
+
           "House/Stall No.":
             typeof row["House/Stall No."] === "string"
               ? row["House/Stall No."]
@@ -88,6 +94,7 @@ export async function POST(req: NextRequest) {
         };
         const fields = extractExcelFields(excelRow);
         // optionally match subservice/service with DB here too
+
         validate(fields);
         records.push(fields);
       }
