@@ -93,3 +93,144 @@ export function isDBError(err: unknown): err is DBError {
     typeof (err as DBError).code === "string"
   );
 }
+
+export function validate(fields: ExtractedFields) {
+  if (
+    !fields.name ||
+    !fields.value ||
+    !fields.recordNumber ||
+    !fields.service ||
+    !fields.subservice
+  ) {
+    throw new Error(
+      "Missing required fields: " +
+        (!fields.name ? "Customer Name, " : "") +
+        (!fields.value ? "Total Amount" : "") +
+        (!fields.recordNumber ? "Record Number, " : "") +
+        (!fields.service ? "Service" : "") +
+        (!fields.subservice ? "Sub Service, " : "")
+    );
+  }
+}
+
+// app/lib/fieldExtractor.ts
+
+export interface ExtractedFields {
+  ticket: string | null;
+  recordType: string | null;
+  name?: string | null;
+  recordNumber?: string | null;
+  service: string | null;
+  subservice: string | null;
+  value: string | number | null;
+  date?: string | null;
+}
+
+interface Service {
+  id: number;
+  name: string;
+  subServices: string[];
+}
+
+export function extractFields(
+  rawText: string,
+  services: Service[]
+): ExtractedFields {
+  const normalized = rawText.replace(/\s+/g, " ").trim();
+
+  // 1) Customer Name
+  const customerMatch = normalized.match(
+    /(?:client|name)[\s:]+(.+?)(?=\s+(?:invoice|bill|application)[\s:]|$)/i
+  );
+
+  // 2) Invoice/Bill Number
+  const invoiceMatch = normalized.match(
+    /(?:invoice|bill)[\s]*(?:no|number)[\s:]*([A-Za-z0-9_\-]+)/i
+  );
+
+  // 3) Total Amount
+  const amountMatch = normalized.match(
+    /(?:total|amount due|balance|grand total|bill total amount)[\s:]*\$?([\d,]+\.\d{2})\b/i
+  );
+
+  // 4) Date & Time
+  const dateTimeMatch = normalized.match(
+    /date[\s&]*time[\s:]*([\d\/]+\s+\d{1,2}:\d{2}\s*(?:AM|PM))/i
+  );
+
+  // 5) Subservice / Service
+  let foundSub: string | null = null;
+  let foundSvc: string | null = null;
+  const lower = normalized.toLowerCase();
+
+  // special case: "land rate for" → Annual Land rates
+  if (lower.includes("land rate for")) {
+    foundSub = "Annual Land rates";
+    const svc = services.find((s) =>
+      s.subServices.some((ss) => ss.toLowerCase() === foundSub!.toLowerCase())
+    );
+    foundSvc = svc?.name ?? null;
+  }
+
+  // special case: "UBP" → Service = "Single/Unified Business Permits"
+  else if (normalized.includes("UBP")) {
+    const svc = services.find(
+      (s) =>
+        s.name.toLowerCase() === "single/unified business permits".toLowerCase()
+    );
+    foundSvc = svc?.name ?? "Single/Unified Business Permits";
+    // pick the only subservice from DB (if available)
+    foundSub = svc?.subServices?.[0] ?? null;
+  }
+
+  // fallback: scan DB-provided services list
+  if (!foundSub) {
+    outer: for (const svc of services) {
+      for (const sub of svc.subServices) {
+        if (lower.includes(sub.toLowerCase())) {
+          foundSub = sub;
+          foundSvc = svc.name;
+          break outer;
+        }
+      }
+    }
+  }
+
+  return {
+    ticket: "T-DAEMON",
+    recordType: "invoice",
+    name: customerMatch?.[1]?.trim() ?? null,
+    recordNumber: invoiceMatch?.[1]?.trim() ?? null,
+    service: foundSvc,
+    subservice: foundSub,
+    value: amountMatch?.[1]?.trim() ?? null,
+    date: dateTimeMatch?.[1]?.trim() ?? null,
+  };
+}
+
+// === helper: map a row to your invoice-fields shape ===
+interface ExcelRow {
+  "Customer Name"?: string;
+  "Invoice No"?: string;
+  "Total Amount": string;
+  "House/Stall No."?: string;
+}
+
+export function extractExcelFields(row: ExcelRow) {
+  const name = row["Customer Name"]?.toString().trim();
+  const recordNumber = row["Invoice No"]?.toString().trim();
+  const value = parseFloat(row["Total Amount"]) || 0;
+  const houseStall = row["House/Stall No."]?.toString().toLowerCase() || "";
+
+  return {
+    name,
+    recordNumber,
+    recordType: "invoice",
+    ticket: "T-DAEMON",
+    value,
+    service: "County Rents",
+    subservice: houseStall.includes("house")
+      ? "County Houses"
+      : "County Market Stalls",
+  };
+}
