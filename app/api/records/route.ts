@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Extract structured fields from raw content
-  let records: any[] = [];
+  const records: any[] = [];
   try {
     const services = await loadServices();
 
