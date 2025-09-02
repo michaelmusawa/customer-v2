@@ -3,7 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { safeQuery } from "@/app/lib/db";
 import bcrypt from "bcryptjs";
 import { fetchFilteredRecords } from "@/app/lib/recordsActions";
-import { extractExcelFields, extractFields, validate } from "@/app/lib/utils";
+import {
+  ExtractedFields,
+  extractExcelFields,
+  extractFields,
+  validate,
+} from "@/app/lib/utils";
 import { loadServices } from "@/app/lib/serviceLoader";
 
 type RawPayload =
@@ -48,7 +53,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Extract structured fields from raw content
-  const records: any[] = [];
+  const records: ExtractedFields[] = [];
   try {
     const services = await loadServices();
 
@@ -99,7 +104,7 @@ export async function POST(req: NextRequest) {
       // Check for duplicates
 
       const cleanValue = rec.value
-        ? parseInt(rec.value.replace(/,/g, ""), 10)
+        ? parseInt(String(rec.value).replace(/,/g, ""), 10)
         : null;
 
       const dupRes = await safeQuery(
