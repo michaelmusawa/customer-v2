@@ -15,19 +15,22 @@ const RecordsTable = async ({
   endDate,
   currentPage,
   role,
+  analysis,
 }: {
   query: string;
   startDate: string;
   endDate: string;
   currentPage: number;
   role: string;
+  analysis: "invoice" | "receipt";
 }) => {
   const records: RecordRow[] = await fetchFilteredRecords(
     query,
     startDate,
     endDate,
     role,
-    currentPage
+    currentPage,
+    analysis
   );
 
   const offset = (currentPage - 1) * PAGE_SIZE;

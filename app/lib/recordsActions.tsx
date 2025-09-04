@@ -10,13 +10,12 @@ import { RecordInput, RecordSchema } from "./schemas";
 import { revalidatePath } from "next/cache";
 
 /** Get total pages of records matching filters and role */
-
-/** Get total pages of records matching filters and role */
 export async function fetchRecordsPages(
   query: string,
   startDate: string,
   endDate: string,
-  role: string | null
+  role: string | null,
+  recordType?: "invoice" | "receipt"
 ): Promise<number> {
   const ITEMS_PER_PAGE = 10;
   const likeParam = `%${query.toLowerCase()}%`;
@@ -31,26 +30,31 @@ export async function fetchRecordsPages(
   `;
 
   const where: string[] = [
-    `(LOWER(r.ticket) LIKE $1 OR
-      LOWER(r.recordType) LIKE $1 OR
-      LOWER(r.name) LIKE $1 OR
-      LOWER(r.service) LIKE $1 OR
-      LOWER(r.recordNumber) LIKE $1 OR
-      LOWER(c.name) LIKE $1 OR
-      LOWER(s.name) LIKE $1)`,
+    `(LOWER(r.ticket) LIKE @p1 OR
+      LOWER(r.recordType) LIKE @p1 OR
+      LOWER(r.name) LIKE @p1 OR
+      LOWER(r.service) LIKE @p1 OR
+      LOWER(r.recordNumber) LIKE @p1 OR
+      LOWER(c.name) LIKE @p1 OR
+      LOWER(s.name) LIKE @p1)`,
   ];
 
   if (startDate && endDate) {
     where.push(
-      `r.createdAt BETWEEN $${params.length + 1} AND $${params.length + 2}`
+      `r.createdAt BETWEEN @p${params.length + 1} AND @p${params.length + 2}`
     );
     params.push(startDate, endDate);
   } else if (startDate) {
-    where.push(`r.createdAt >= $${params.length + 1}`);
+    where.push(`r.createdAt >= @p${params.length + 1}`);
     params.push(startDate);
   } else if (endDate) {
-    where.push(`r.createdAt <= $${params.length + 1}`);
+    where.push(`r.createdAt <= @p${params.length + 1}`);
     params.push(endDate);
+  }
+
+  if (recordType) {
+    where.push(`r.recordType = @p${params.length + 1}`);
+    params.push(recordType);
   }
 
   if (role === "supervisor") {
@@ -58,7 +62,7 @@ export async function fetchRecordsPages(
     const email = session?.user?.email || "";
     const user = await getUser(email);
     if (user?.stationId != null) {
-      where.push(`u.stationId = $${params.length + 1}`);
+      where.push(`u.stationId = @p${params.length + 1}`);
       params.push(user.stationId);
     }
   } else if (role === "biller") {
@@ -66,7 +70,7 @@ export async function fetchRecordsPages(
     const email = session?.user?.email || "";
     const user = await getUser(email);
     if (user?.id != null) {
-      where.push(`r.userId = $${params.length + 1}`);
+      where.push(`r.userId = @p${params.length + 1}`);
       params.push(user.id);
     }
   }
@@ -85,13 +89,13 @@ export async function fetchFilteredRecords(
   endDate: string,
   role: string | null,
   currentPage: number,
+  recordType?: "invoice" | "receipt",
   itemsPerPage: number = 10
 ): Promise<RecordRow[]> {
   const offset = (currentPage - 1) * itemsPerPage;
-  const likeParam = `%${query}%`;
+  const likeParam = `%${query.toLowerCase()}%`;
   const params: unknown[] = [likeParam];
 
-  // Base SELECT
   let sql = `
     WITH OrderedRecords AS (
       SELECT
@@ -117,26 +121,31 @@ export async function fetchFilteredRecords(
   `;
 
   const where: string[] = [
-    `(LOWER(r.ticket) LIKE $1 OR
-      LOWER(r.recordType) LIKE $1 OR
-      LOWER(r.name) LIKE $1 OR
-      LOWER(r.service) LIKE $1 OR
-      LOWER(r.recordNumber) LIKE $1 OR
-      LOWER(c.name) LIKE $1 OR
-      LOWER(s.name) LIKE $1)`,
+    `(LOWER(r.ticket) LIKE @p1 OR
+      LOWER(r.recordType) LIKE @p1 OR
+      LOWER(r.name) LIKE @p1 OR
+      LOWER(r.service) LIKE @p1 OR
+      LOWER(r.recordNumber) LIKE @p1 OR
+      LOWER(c.name) LIKE @p1 OR
+      LOWER(s.name) LIKE @p1)`,
   ];
 
   if (startDate && endDate) {
     where.push(
-      `r.createdAt BETWEEN $${params.length + 1} AND $${params.length + 2}`
+      `r.createdAt BETWEEN @p${params.length + 1} AND @p${params.length + 2}`
     );
     params.push(startDate, endDate);
   } else if (startDate) {
-    where.push(`r.createdAt >= $${params.length + 1}`);
+    where.push(`r.createdAt >= @p${params.length + 1}`);
     params.push(startDate);
   } else if (endDate) {
-    where.push(`r.createdAt <= $${params.length + 1}`);
+    where.push(`r.createdAt <= @p${params.length + 1}`);
     params.push(endDate);
+  }
+
+  if (recordType) {
+    where.push(`r.recordType = @p${params.length + 1}`);
+    params.push(recordType);
   }
 
   if (role === "supervisor") {
@@ -144,7 +153,7 @@ export async function fetchFilteredRecords(
     const email = session?.user?.email || "";
     const user = await getUser(email);
     if (user?.stationId) {
-      where.push(`u.stationId = $${params.length + 1}`);
+      where.push(`u.stationId = @p${params.length + 1}`);
       params.push(user.stationId);
     }
   } else if (role === "biller") {
@@ -152,18 +161,17 @@ export async function fetchFilteredRecords(
     const email = session?.user?.email || "";
     const user = await getUser(email);
     if (user?.id) {
-      where.push(`r.userId = $${params.length + 1}`);
+      where.push(`r.userId = @p${params.length + 1}`);
       params.push(user.id);
     }
   }
 
-  sql += ` WHERE ${where.join(" AND ")} ) `; // close CTE
+  sql += ` WHERE ${where.join(" AND ")} ) `;
 
-  // Pagination: return only the slice
   sql += `
     SELECT *
     FROM OrderedRecords
-    WHERE rn BETWEEN $${params.length + 1} AND $${params.length + 2}
+    WHERE rn BETWEEN @p${params.length + 1} AND @p${params.length + 2}
   `;
 
   params.push(offset + 1, offset + itemsPerPage);
@@ -199,7 +207,8 @@ export async function fetchEditedRecordsPages(
   query: string,
   startDate: string,
   endDate: string,
-  role: string | null
+  role: string | null,
+  recordType: "invoice" | "receipt"
 ): Promise<number> {
   const ITEMS_PER_PAGE = 10;
   const likeParam = `%${query}%`;
@@ -240,6 +249,11 @@ export async function fetchEditedRecordsPages(
     where.push(`r.status = 'pending'`);
   }
 
+  if (recordType) {
+    where.push(`r.recordType = $${params.length + 1}`);
+    params.push(recordType);
+  }
+
   if (role === "supervisor") {
     const session = await auth();
     const email = session?.user?.email || "";
@@ -271,7 +285,8 @@ export async function fetchFilteredEditedRecords(
   startDate: string,
   endDate: string,
   role: string | null,
-  currentPage: number
+  currentPage: number,
+  recordType: "invoice" | "receipt"
 ): Promise<EditRecordRow[]> {
   const ITEMS_PER_PAGE = 10;
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -337,6 +352,11 @@ export async function fetchFilteredEditedRecords(
 
   if (role !== "biller") {
     where.push(`r.status = 'pending'`);
+  }
+
+  if (recordType) {
+    where.push(`r.recordType = $${params.length + 1}`);
+    params.push(recordType);
   }
 
   if (role === "supervisor") {

@@ -10,6 +10,7 @@ type BaseFilters = {
   endDate?: string;
   station?: string;
   userId?: number;
+  recordType?: "invoice" | "receipt";
 };
 
 /**
@@ -45,6 +46,11 @@ function buildWhereClause(
     clauses.push(`r.userId = @p${params.length}`);
   }
 
+  if (filters.recordType) {
+    params.push(filters.recordType);
+    clauses.push(`r.recordType = @p${params.length}`);
+  }
+
   return clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
 }
 
@@ -77,9 +83,10 @@ export type DashboardSummary = {
 export async function fetchSummaryStats(
   startDate?: string,
   endDate?: string,
-  station?: string
+  station?: string,
+  recordType?: "invoice" | "receipt"
 ): Promise<DashboardSummary> {
-  let filters: BaseFilters = { startDate, endDate, station };
+  let filters: BaseFilters = { startDate, endDate, station, recordType };
   filters = await injectRoleFilters(filters);
 
   const params: (string | number)[] = [];
@@ -87,7 +94,7 @@ export async function fetchSummaryStats(
 
   const sql = `
     WITH base AS (
-      SELECT r.id, r.value, r.name AS client
+      SELECT r.id, r.value, r.recordType, r.name AS client
       FROM records r
       JOIN [User] u ON u.id = r.userId
       LEFT JOIN stations st ON st.id = u.stationId
@@ -126,9 +133,10 @@ export type TimePoint = { date: string; count: number };
 export async function fetchTimeSeries(
   startDate?: string,
   endDate?: string,
-  station?: string
+  station?: string,
+  recordType?: "invoice" | "receipt"
 ): Promise<TimePoint[]> {
-  let filters: BaseFilters = { startDate, endDate, station };
+  let filters: BaseFilters = { startDate, endDate, station, recordType };
   filters = await injectRoleFilters(filters);
 
   const params: (string | number)[] = [];
@@ -137,12 +145,12 @@ export async function fetchTimeSeries(
   const sql = `
     SELECT
       CONVERT(VARCHAR(10), r.createdAt, 23) AS date, -- yyyy-MM-dd
-      CAST(COUNT(*) AS INT) AS count
+      CAST(COUNT(*) AS INT) AS count, r.recordType
     FROM records r
     JOIN [User] u ON u.id = r.userId
     LEFT JOIN stations st ON st.id = u.stationId
     ${where}
-    GROUP BY CONVERT(VARCHAR(10), r.createdAt, 23)
+    GROUP BY CONVERT(VARCHAR(10), r.createdAt, 23), r.recordType
     ORDER BY date
   `;
 
@@ -155,9 +163,10 @@ export type Breakdown = { name: string; value: number };
 export async function fetchServiceBreakdown(
   startDate?: string,
   endDate?: string,
-  station?: string
+  station?: string,
+  recordType?: "invoice" | "receipt"
 ): Promise<Breakdown[]> {
-  let filters: BaseFilters = { startDate, endDate, station };
+  let filters: BaseFilters = { startDate, endDate, station, recordType };
   filters = await injectRoleFilters(filters);
 
   const params: (string | number)[] = [];
@@ -166,12 +175,14 @@ export async function fetchServiceBreakdown(
   const sql = `
     SELECT
       r.service AS name,
-      CAST(COUNT(*) AS INT) AS value
+      CAST(COUNT(*) AS INT) AS value,
+      r.recordType
     FROM records r
     JOIN [User] u ON u.id = r.userId
     LEFT JOIN stations st ON st.id = u.stationId
     ${where}
-    GROUP BY r.service
+    GROUP BY r.service,
+    r.recordType
     ORDER BY value DESC
   `;
 
@@ -184,9 +195,10 @@ export type ShiftBreakdown = { name: string; value: number };
 export async function fetchShiftDistribution(
   startDate?: string,
   endDate?: string,
-  station?: string
+  station?: string,
+  recordType?: "invoice" | "receipt"
 ): Promise<ShiftBreakdown[]> {
-  let filters: BaseFilters = { startDate, endDate, station };
+  let filters: BaseFilters = { startDate, endDate, station, recordType };
   filters = await injectRoleFilters(filters);
 
   const params: (string | number)[] = [];
@@ -195,13 +207,14 @@ export async function fetchShiftDistribution(
   const sql = `
     SELECT
       sh.name AS name,
-      CAST(COUNT(*) AS INT) AS value
+      CAST(COUNT(*) AS INT) AS value,
+      r.recordType
     FROM records r
     JOIN [User] u ON u.id = r.userId
     LEFT JOIN stations st ON st.id = u.stationId
     LEFT JOIN shifts sh ON sh.id = u.shiftId
     ${where}
-    GROUP BY sh.name
+    GROUP BY sh.name, r.recordType
     ORDER BY value DESC
   `;
 
@@ -219,8 +232,11 @@ export type TopPerformer = {
 export async function fetchTopBillers(
   startDate?: string,
   endDate?: string,
-  station?: string
+  station?: string,
+  recordType?: "invoice" | "receipt"
 ): Promise<TopPerformer[]> {
+  console.log("Fetching top billers...", recordType);
+
   const session = await auth();
   const email = session?.user?.email;
   const me = email ? await getUser(email) : null;
@@ -249,6 +265,11 @@ export async function fetchTopBillers(
     whereClauses.push(`st.name = @p${params.length}`);
   }
 
+  if (recordType) {
+    params.push(recordType);
+    whereClauses.push(`r.RecordType = @p${params.length}`);
+  }
+
   if ((amSupervisor || amBiller) && me?.stationId != null) {
     params.push(me.stationId);
     whereClauses.push(`u.stationId = @p${params.length}`);
@@ -261,13 +282,14 @@ export async function fetchTopBillers(
     SELECT
       u.id AS userId,
       u.name AS name,
+      r.recordType,
       CAST(COUNT(*) AS INT) AS count,
       CAST(COALESCE(SUM(r.value),0) AS BIGINT) AS value
     FROM records r
     JOIN [User] u ON u.id = r.userId
     LEFT JOIN stations st ON st.id = u.stationId
     ${where}
-    GROUP BY u.id, u.name
+    GROUP BY u.id, u.name, r.recordType
     ORDER BY count DESC
   `;
 
@@ -308,9 +330,10 @@ export type TopService = { name: string; count: number; value: number };
 export async function fetchTopServices(
   startDate?: string,
   endDate?: string,
-  station?: string
+  station?: string,
+  recordType?: "invoice" | "receipt"
 ): Promise<TopService[]> {
-  let filters: BaseFilters = { startDate, endDate, station };
+  let filters: BaseFilters = { startDate, endDate, station, recordType };
   filters = await injectRoleFilters(filters);
 
   const params: (string | number)[] = [];
@@ -320,12 +343,13 @@ export async function fetchTopServices(
     SELECT TOP 5
       r.service AS name,
       CAST(COUNT(*) AS INT) AS count,
-      CAST(COALESCE(SUM(r.value),0) AS BIGINT) AS value
+      CAST(COALESCE(SUM(r.value),0) AS BIGINT) AS value,
+      r.recordType
     FROM records r
     JOIN [User] u ON u.id = r.userId
     LEFT JOIN stations st ON st.id = u.stationId
     ${where}
-    GROUP BY r.service
+    GROUP BY r.service, r.recordType
     ORDER BY count DESC
   `;
 

@@ -8,6 +8,7 @@ import Pagination from "@/components/ui/pagination";
 import Search from "@/components/ui/search";
 import TableSkeleton from "@/components/ui/TableSkeleton";
 import React, { Suspense } from "react";
+import AnalysisToggle from "@/components/ui/AnalysisToggle";
 
 const Page = async (props: {
   searchParams?: Promise<{
@@ -17,6 +18,7 @@ const Page = async (props: {
     page?: string;
     deleted?: boolean;
     success?: boolean;
+    analysis?: "invoice" | "receipt";
   }>;
   params?: Promise<{ role?: string }>;
 }) => {
@@ -27,7 +29,14 @@ const Page = async (props: {
   const startDate = searchParams?.startDate || "";
   const endDate = searchParams?.endDate || "";
   const currentPage = Number(searchParams?.page) || 1;
-  const totalPages = await fetchRecordsPages(query, startDate, endDate, role);
+  const analysis = searchParams?.analysis || "invoice";
+  const totalPages = await fetchRecordsPages(
+    query,
+    startDate,
+    endDate,
+    role,
+    analysis
+  );
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 p-4 md:p-6">
@@ -65,6 +74,10 @@ const Page = async (props: {
                 placeholderStart="Start Date"
                 placeholderEnd="End Date"
               />
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Analysis Type
+              </label>
+              <AnalysisToggle />
             </div>
           </div>
 
@@ -75,6 +88,7 @@ const Page = async (props: {
               endDate={endDate}
               currentPage={currentPage}
               role={role}
+              analysis={analysis}
             />
           </Suspense>
 

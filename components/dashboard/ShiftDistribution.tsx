@@ -7,11 +7,18 @@ export default async function ShiftDistribution({
   startDate,
   endDate,
   station,
+  analysis,
 }: {
   startDate: string;
   endDate: string;
   station: string;
+  analysis: "invoice" | "receipt";
 }) {
-  const data = await fetchShiftDistribution(startDate, endDate, station);
+  const data = await fetchShiftDistribution(
+    startDate,
+    endDate,
+    station,
+    analysis
+  );
   return <ShiftDistributionComponent data={data} />;
 }

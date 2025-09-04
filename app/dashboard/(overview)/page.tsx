@@ -2,32 +2,38 @@
 import React, { Suspense } from "react";
 import ServiceBreakdown from "@/components/dashboard/ServiceBreakdown";
 import ShiftDistribution from "@/components/dashboard/ShiftDistribution";
+import SummarySection from "@/components/dashboard/SummarySection";
+import TimeSeriesChart from "@/components/dashboard/TimeSeriesChart";
+import TopBillers from "@/components/dashboard/TopBillers";
+import TopServices from "@/components/dashboard/TopServices";
+
 import ServiceBreakdownSkeleton from "@/components/dashboard/skeleton/ServiceBreakdownSkeleton";
 import ShiftDistributionSkeleton from "@/components/dashboard/skeleton/ShiftDistributionSkeleton";
 import SummarySectionSkeleton from "@/components/dashboard/skeleton/SummarySectionSkeleton";
 import TimeSeriesChartSkeleton from "@/components/dashboard/skeleton/TimeSeriesChartSkeleton";
 import TopBillersSkeleton from "@/components/dashboard/skeleton/TopBillersSkeleton";
 import TopServicesSkeleton from "@/components/dashboard/skeleton/TopServicesSkeleton";
-import SummarySection from "@/components/dashboard/SummarySection";
-import TimeSeriesChart from "@/components/dashboard/TimeSeriesChart";
-import TopBillers from "@/components/dashboard/TopBillers";
-import TopServices from "@/components/dashboard/TopServices";
+
 import StationFilter from "@/components/report/StationFilter";
 import DateRangeFilter from "@/components/ui/dateRangeFilter";
+
 import { auth } from "@/auth";
 import { getUser } from "@/app/lib/loginActions";
+import AnalysisToggle from "@/components/ui/AnalysisToggle";
 
 const Page = async (props: {
   searchParams?: Promise<{
     station?: string;
     startDate?: string;
     endDate?: string;
+    analysis?: "invoice" | "receipt";
   }>;
 }) => {
   const {
     station = "",
     startDate = "",
     endDate = "",
+    analysis = "invoice",
   } = (await props.searchParams) ?? {};
 
   const session = await auth();
@@ -37,8 +43,6 @@ const Page = async (props: {
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-
         {/* Filters */}
         <div className="mb-8 bg-white dark:bg-gray-800 rounded-2xl shadow-md p-5">
           <div className="flex flex-col md:flex-row gap-4">
@@ -59,6 +63,12 @@ const Page = async (props: {
                 placeholderEnd="End Date"
               />
             </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Analysis Type
+              </label>
+              <AnalysisToggle />
+            </div>
           </div>
         </div>
 
@@ -69,6 +79,7 @@ const Page = async (props: {
               startDate={startDate}
               endDate={endDate}
               station={station}
+              analysis={analysis} // 👈 pass analysis type
             />
           </Suspense>
         </div>
@@ -84,6 +95,7 @@ const Page = async (props: {
                 startDate={startDate}
                 endDate={endDate}
                 station={station}
+                analysis={analysis} // 👈 pass analysis type
               />
             </Suspense>
           </div>
@@ -98,6 +110,7 @@ const Page = async (props: {
                   startDate={startDate}
                   endDate={endDate}
                   station={station}
+                  analysis={analysis} // 👈 pass analysis type
                 />
               </Suspense>
             </div>
@@ -111,6 +124,7 @@ const Page = async (props: {
                   startDate={startDate}
                   endDate={endDate}
                   station={station}
+                  analysis={analysis} // 👈 pass analysis type
                 />
               </Suspense>
             </div>
@@ -128,6 +142,7 @@ const Page = async (props: {
                 startDate={startDate}
                 endDate={endDate}
                 station={station}
+                analysis={analysis} // 👈 pass analysis type
               />
             </Suspense>
           </div>
@@ -141,6 +156,7 @@ const Page = async (props: {
                 startDate={startDate}
                 endDate={endDate}
                 station={station}
+                analysis={analysis} // 👈 pass analysis type
               />
             </Suspense>
           </div>

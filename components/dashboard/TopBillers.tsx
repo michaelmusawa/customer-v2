@@ -6,15 +6,17 @@ export default async function TopBillers({
   startDate,
   endDate,
   station,
+  analysis,
 }: {
   startDate: string;
   endDate: string;
   station: string;
+  analysis: "invoice" | "receipt";
   userId?: number;
 }) {
   // The server helper now returns exactly the 5‐row “window”
   // (or top 5 if you’re not a biller or you’re in the top two).
-  const rows = await fetchTopBillers(startDate, endDate, station);
+  const rows = await fetchTopBillers(startDate, endDate, station, analysis);
 
   return (
     <div>

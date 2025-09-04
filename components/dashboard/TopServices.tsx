@@ -7,12 +7,14 @@ export default async function TopServices({
   startDate,
   endDate,
   station,
+  analysis,
 }: {
   startDate: string;
   endDate: string;
   station: string;
+  analysis: "invoice" | "receipt";
 }) {
-  const data = await fetchTopServices(startDate, endDate, station);
+  const data = await fetchTopServices(startDate, endDate, station, analysis);
 
   return (
     <div>
