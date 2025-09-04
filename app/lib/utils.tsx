@@ -100,15 +100,17 @@ export function validate(fields: ExtractedFields) {
     !fields.value ||
     !fields.recordNumber ||
     !fields.service ||
-    !fields.subservice
+    !fields.subservice ||
+    !fields.recordType
   ) {
     throw new Error(
       "Missing required fields: " +
         (!fields.name ? "Customer Name, " : "") +
         (!fields.value ? "Total Amount" : "") +
         (!fields.recordNumber ? "Record Number, " : "") +
-        (!fields.service ? "Service" : "") +
-        (!fields.subservice ? "Sub Service, " : "")
+        (!fields.service ? "Service, " : "") +
+        (!fields.subservice ? "Sub Service, " : "") +
+        (!fields.recordType ? "Record Type, " : "")
     );
   }
 }
@@ -147,6 +149,43 @@ export function extractFields(
         .replace(/Scan this QR Code.*?(?=PAGE\d+|$)/gi, "")
         .trim()
     );
+  }
+  function extractRecordType(text: string): "invoice" | "receipt" | null {
+    const normalized = text.toLowerCase();
+
+    if (/\binvoice\s*no\b|\binvoice\b/.test(normalized)) {
+      return "invoice";
+    }
+
+    if (/\breceipt\s*no\b|\breceipt\b/.test(normalized)) {
+      return "receipt";
+    }
+
+    if (/\bbill\s*no\b|\bbill\b/.test(normalized)) {
+      // normalize "bill" to "invoice"
+      return "invoice";
+    }
+
+    return null;
+  }
+
+  function extractExplicitDate(text: string): string | null {
+    // Matches: Date: Wednesday, May 21, 2025  OR Date Of Application:  5/6/25
+    const lineMatch = text.match(
+      /\bDate(?:\s*Of\s*Application)?\s*[:\-]?\s*([A-Za-z]+\s+\d{1,2},?\s*\d{4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i
+    );
+    if (!lineMatch) return null;
+
+    const rawDate = lineMatch[1].trim();
+
+    // Try native Date parser first
+    const dt = new Date(rawDate);
+    if (!isNaN(dt.getTime())) {
+      return dt.toISOString().split("T")[0];
+    }
+
+    // If not, try numeric fallback
+    return extractNumericDate(rawDate);
   }
 
   // --- Helper: insert spaces into glued ALL-CAPS org names ---
@@ -273,44 +312,61 @@ export function extractFields(
   }
 
   const normalized = cleanOcrText(rawText);
+  const lower = normalized.toLowerCase();
 
-  // --- 1) Customer Name (stop at next label via lookahead) ---
+  // --- 🔑 Record type detection ---
+  const recordType = extractRecordType(rawText);
+
+  function extractNumericDate(text: string): string | null {
+    // Matches 5/6/25, 5/6/2025, 05-06-2025
+    const m = text.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
+    if (!m) return null;
+    let [, d, mth, y] = m;
+    if (y.length === 2) {
+      // Expand 2-digit year to 20xx (simple heuristic)
+      y = "20" + y;
+    }
+    const dt = new Date(parseInt(y), parseInt(mth) - 1, parseInt(d));
+    return isNaN(dt.getTime()) ? null : dt.toISOString().split("T")[0];
+  }
+
+  // --- 1) Customer Name ---
   const nameMatch =
     normalized.match(
       /CUSTOMERNAME\.?:\s*([A-Z0-9 ]+?)(?=\s+(?:APPLICATIONNO|INVOICENO|CUSTOMERNO|BILLTO|DATE|ITEM|DESCRIPTION|NARRATIVE|PAGE\d+|POWEREDBY)\b|$)/i
     ) ||
     normalized.match(
-      /(?:\bCLIENT|\bNAME)\s*[:\-]\s*([A-Z0-9 ]+?)(?=\s+(?:INVOICE|BILL|APPLICATION)\b|$)/i
+      /(?:\bCLIENT|\bNAME)\s*[:\-]\s*([A-Z0-9 ]+?)(?=\s+(?:INVOICE|BILL|APPLICATION|RECEIPT)\b|$)/i
     );
 
   let customerName = nameMatch?.[1]?.trim() ?? null;
   if (customerName) customerName = deglueUppercaseName(customerName);
 
-  // --- 2) Invoice/Bill Number (anchored; avoid "include invoice number on your cheque") ---
-  const invoiceMatch =
+  // --- 2) Invoice/Receipt/Bill Number ---
+  const numberMatch =
     normalized.match(
-      /(?:INVOICENO|INVOICE\s*NO\.?|INVOICE\s*NUMBER)\s*[.:#-]?\s*([A-Z0-9\-]+)/i
+      /(?:INVOICENO|INVOICE\s*NO\.?|INVOICE\s*NUMBER|RECEIPT\s*NO\.?|RECEIPT\s*NUMBER)\s*[.:#-]?\s*([A-Z0-9\-]+)/i
     ) ||
     normalized.match(/(?:BILL\s*(?:NO|NUMBER))\s*[.:#-]?\s*([A-Z0-9\-]+)/i);
-  const recordNumber = invoiceMatch?.[1]?.trim() ?? null;
+  const recordNumber = numberMatch?.[1]?.trim() ?? null;
 
   // --- 3) Total Amount ---
   const amountMatch =
     normalized.match(
-      /(?:GRAND\s*TOTAL(?:\s*KES)?|TOTAL\s*AMOUNT|AMOUNT\s*DUE|BALANCE|BILL\s*TOTAL\s*AMOUNT)\s*[.:]?\s*\$?([\d,]+\.\d{2})\b/i
+      /(?:GRAND\s*TOTAL(?:\s*KES)?|TOTAL(?:\s*AMOUNT)?(?:\s*KES)?|AMOUNT\s*DUE|BALANCE|BILL\s*TOTAL\s*AMOUNT|AMOUNT\s*RECEIVED|SERVICE\s*AMOUNT)\s*[.:]?\s*\$?([\d,]+\.\d{2})\b/i
     ) || normalized.match(/GRANDTOTALKES\s+([\d,]+\.\d{2})/i);
 
-  // --- 4) Date (find best candidate across whole text) ---
-  // Prefer explicit "BILLTO DATE ..." region if present, else global scan
+  // --- 4) Date (unchanged) ---
   const billtoRegion =
     normalized.match(/BILLTO\s*DATE\s*([A-Z0-9 ]{5,20})/i)?.[0] ?? normalized;
   const fixedDate =
-    bestOcrDateFromText(billtoRegion) || bestOcrDateFromText(normalized);
+    extractExplicitDate(normalized) || // <-- new priority
+    bestOcrDateFromText(normalized) ||
+    extractNumericDate(normalized);
 
-  // --- 5) Service/Subservice inference ---
+  // --- 5) Service/Subservice inference (unchanged) ---
   let foundSub: string | null = null;
   let foundSvc: string | null = null;
-  const lower = normalized.toLowerCase();
 
   if (lower.includes("land rate for")) {
     foundSub = "Annual Land rates";
@@ -324,7 +380,6 @@ export function extractFields(
         s.name.toLowerCase() === "single/unified business permits".toLowerCase()
     );
     foundSvc = svc?.name ?? "Single/Unified Business Permits";
-    // pick a sensible default subservice if DB has one
     foundSub = svc?.subServices?.[0] ?? "Single Business Permits";
   }
 
@@ -342,7 +397,7 @@ export function extractFields(
 
   const result: ExtractedFields = {
     ticket: "T-DAEMON",
-    recordType: "invoice",
+    recordType, // 🔑 auto-detected instead of hard-coded
     name: customerName ?? null,
     recordNumber: recordNumber ?? null,
     service: foundSvc ?? null,

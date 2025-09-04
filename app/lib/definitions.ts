@@ -107,7 +107,7 @@ export interface DashboardSummary {
 export interface RecordRow {
   id: number;
   ticket: string;
-  recordType: string | null;
+  recordType?: "invoice" | "receipt";
   name: string;
   service: string;
   subService: string | null;

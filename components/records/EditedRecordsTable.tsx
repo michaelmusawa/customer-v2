@@ -12,6 +12,7 @@ const EditedRecordsTable = async ({
   endDate,
   currentPage,
   role,
+  analysis,
 }: {
   query: string;
   startDate: string;
@@ -19,13 +20,15 @@ const EditedRecordsTable = async ({
   currentPage: number;
   role: string;
   group?: string;
+  analysis: "invoice" | "receipt";
 }) => {
   const records = await fetchFilteredEditedRecords(
     query,
     startDate,
     endDate,
     role,
-    currentPage
+    currentPage,
+    analysis
   );
 
   const formatDate = (dateString: Date) => {

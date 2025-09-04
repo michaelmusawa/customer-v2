@@ -27,6 +27,7 @@ interface AddRecordModalProps {
     subService?: string | null;
     value?: number | null;
     recordNumber?: string | null;
+    recordType?: "invoice" | "receipt";
   };
 }
 
@@ -47,6 +48,11 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
   const [subservicesMap, setSubservicesMap] = useState<
     Record<string, string[]>
   >({});
+
+  // recordType selector
+  const [recordType, setRecordType] = useState<"invoice" | "receipt" | "">(
+    record?.recordType || ""
+  );
 
   // Rows state
   const [rows, setRows] = useState<Row[]>(() =>
@@ -71,14 +77,12 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
 
   useEffect(() => {
-    // Fetch services
     const fetchServices = async () => {
       try {
         const response = await fetch("/api/settings/services");
         const data = await response.json();
         setServices(data.items || []);
 
-        // Prefetch subservices
         const map: Record<string, string[]> = {};
         await Promise.all(
           (data.items || []).map(async (svc: string) => {
@@ -100,7 +104,6 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
     if (isOpen) fetchServices();
   }, [isOpen]);
 
-  // Close on success
   useEffect(() => {
     if (state.message) {
       const t = setTimeout(() => close(), 1500);
@@ -108,7 +111,6 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
     }
   }, [state.message]);
 
-  // Close modal on ESC key
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
@@ -121,7 +123,6 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
   const open = () => setIsOpen(true);
   const close = () => setIsOpen(false);
 
-  // Row management
   const addRow = () =>
     setRows((r) => [
       ...r,
@@ -136,14 +137,14 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
       r.map((row, idx) => (i === idx ? { ...row, [field]: val } : row))
     );
 
+  const fieldsDisabled = !recordType;
+
   return (
     <>
       <button
         onClick={open}
-        className={`flex items-center gap-2 px-4 py-2.5 text-white rounded-xl shadow-lg transition-all hover:shadow-xl 
-          
-            bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700
-        `}
+        className="flex items-center gap-2 px-4 py-2.5 text-white rounded-xl shadow-lg transition-all hover:shadow-xl 
+          bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
       >
         {isEdit ? (
           <FiTag className="text-lg" />
@@ -151,7 +152,7 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
           <FiPlus className="text-lg" />
         )}
         <span className="font-medium">
-          {isEdit ? "Edit Record" : "New Records"}
+          {isEdit ? "Edit Record" : "New Record"}
         </span>
       </button>
 
@@ -165,7 +166,7 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
               {/* Header */}
               <div className="flex justify-between items-center mb-6 pb-2 border-b border-gray-100 dark:border-gray-700">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {isEdit ? "Edit Record" : "Create Records"}
+                  {isEdit ? "Edit Record" : "Create Record"}
                 </h2>
                 <button
                   onClick={close}
@@ -190,43 +191,60 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
 
               {/* FORM */}
               <form action={formAction} className="space-y-6">
-                {/* Hidden ID for edit mode */}
                 {isEdit && <input type="hidden" name="id" value={record!.id} />}
-                <input type="hidden" name="recordType" value="invoice" />
+
+                {/* Record type selector */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Record Type
+                  </label>
+                  <select
+                    name="recordType"
+                    required
+                    value={recordType}
+                    onChange={(e) =>
+                      setRecordType(e.target.value as "invoice" | "receipt")
+                    }
+                    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  >
+                    <option value="">Select record type</option>
+                    <option value="invoice">Invoice</option>
+                    <option value="receipt">Receipt</option>
+                  </select>
+                </div>
+
                 {/* Ticket + Customer */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       <FiTag className="text-gray-500" /> Ticket Number
                     </label>
-                    <div className="relative">
-                      <input
-                        name="ticket"
-                        defaultValue={record?.ticket || ""}
-                        required
-                        className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                        placeholder="Ticket #"
-                      />
-                    </div>
+                    <input
+                      name="ticket"
+                      defaultValue={record?.ticket || ""}
+                      required
+                      disabled={fieldsDisabled}
+                      className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:opacity-50"
+                      placeholder="Ticket #"
+                    />
                   </div>
 
                   <div>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       <FiUser className="text-gray-500" /> Customer Name
                     </label>
-                    <div className="relative">
-                      <input
-                        name="name"
-                        defaultValue={record?.name || ""}
-                        required
-                        className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                        placeholder="Customer name"
-                      />
-                    </div>
+                    <input
+                      name="name"
+                      defaultValue={record?.name || ""}
+                      required
+                      disabled={fieldsDisabled}
+                      className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:opacity-50"
+                      placeholder="Customer name"
+                    />
                   </div>
                 </div>
 
-                {/* Dynamic Rows */}
+                {/* Rows (only active if recordType is selected) */}
                 <div className="space-y-5">
                   {rows.map((row, idx) => (
                     <div
@@ -239,31 +257,30 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Service
                           </label>
-                          <div className="relative">
-                            <select
-                              name="service"
-                              required
-                              value={row.service}
-                              onChange={(e) =>
-                                updateRow(idx, "service", e.target.value)
-                              }
-                              className="w-full appearance-none pl-4 pr-10 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                            >
-                              <option value="">Select service</option>
-                              {isLoadingServices ? (
-                                <option value="" disabled>
-                                  Loading services...
+                          <select
+                            name="service"
+                            required
+                            value={row.service}
+                            disabled={fieldsDisabled}
+                            onChange={(e) =>
+                              updateRow(idx, "service", e.target.value)
+                            }
+                            className="w-full appearance-none pl-4 pr-10 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:opacity-50"
+                          >
+                            <option value="">Select service</option>
+                            {isLoadingServices ? (
+                              <option value="" disabled>
+                                Loading services...
+                              </option>
+                            ) : (
+                              services.map((s) => (
+                                <option key={s} value={s}>
+                                  {s}
                                 </option>
-                              ) : (
-                                services.map((s) => (
-                                  <option key={s} value={s}>
-                                    {s}
-                                  </option>
-                                ))
-                              )}
-                            </select>
-                            <FiChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                          </div>
+                              ))
+                            )}
+                          </select>
+                          <FiChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                         </div>
 
                         {/* Sub-service */}
@@ -271,30 +288,25 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Sub-service
                           </label>
-                          <div className="relative">
-                            <select
-                              name="subService"
-                              required
-                              value={row.subService}
-                              onChange={(e) =>
-                                updateRow(idx, "subService", e.target.value)
-                              }
-                              disabled={!row.service || isLoadingServices}
-                              className="w-full appearance-none pl-4 pr-10 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:opacity-50"
-                            >
-                              <option value="">
-                                {row.service
-                                  ? "Select"
-                                  : "Select service first"}
+                          <select
+                            name="subService"
+                            required
+                            value={row.subService}
+                            disabled={fieldsDisabled || !row.service}
+                            onChange={(e) =>
+                              updateRow(idx, "subService", e.target.value)
+                            }
+                            className="w-full appearance-none pl-4 pr-10 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:opacity-50"
+                          >
+                            <option value="">
+                              {row.service ? "Select" : "Select service first"}
+                            </option>
+                            {(subservicesMap[row.service] || []).map((ss) => (
+                              <option key={ss} value={ss}>
+                                {ss}
                               </option>
-                              {(subservicesMap[row.service] || []).map((ss) => (
-                                <option key={ss} value={ss}>
-                                  {ss}
-                                </option>
-                              ))}
-                            </select>
-                            <FiChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                          </div>
+                            ))}
+                          </select>
                         </div>
 
                         {/* Value */}
@@ -310,11 +322,12 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
                               name="value"
                               type="number"
                               value={row.value}
+                              disabled={fieldsDisabled}
                               onChange={(e) =>
                                 updateRow(idx, "value", e.target.value)
                               }
                               required
-                              className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                              className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:opacity-50"
                               placeholder="0.00"
                             />
                           </div>
@@ -333,10 +346,11 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
                               <input
                                 name="recordNumber"
                                 value={row.recordNumber}
+                                disabled={fieldsDisabled}
                                 onChange={(e) =>
                                   updateRow(idx, "recordNumber", e.target.value)
                                 }
-                                className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:opacity-50"
                                 placeholder="Optional"
                               />
                             </div>
@@ -345,7 +359,8 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
                             <button
                               type="button"
                               onClick={() => removeRow(idx)}
-                              className="p-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors mb-[9px]"
+                              disabled={fieldsDisabled}
+                              className="p-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors mb-[9px] disabled:opacity-50"
                               aria-label="Remove row"
                             >
                               <FiMinus size={18} />
@@ -356,40 +371,37 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
                     </div>
                   ))}
 
-                  {/* Add Row Button */}
                   {!isEdit && (
                     <button
                       type="button"
                       onClick={addRow}
-                      className="flex items-center gap-2 px-4 py-2.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium rounded-lg border border-dashed border-blue-300 dark:border-blue-700 hover:border-blue-500 dark:hover:border-blue-500 transition-all"
+                      disabled={fieldsDisabled}
+                      className="flex items-center gap-2 px-4 py-2.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium rounded-lg border border-dashed border-blue-300 dark:border-blue-700 hover:border-blue-500 dark:hover:border-blue-500 transition-all disabled:opacity-50"
                     >
                       <FiPlus className="text-lg" />
                       <span>Add another record</span>
                     </button>
                   )}
                 </div>
-                {/* Reason for Record */}
 
+                {/* Reason */}
                 {isEdit && (
                   <div className="mt-6">
-                    <div>
-                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        <FiSettings className="text-gray-500" /> Reason
-                      </label>
-                      <div className="relative">
-                        <textarea
-                          name="reason"
-                          rows={2}
-                          required
-                          className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                          placeholder="Reason for editing this record"
-                        />
-                      </div>
-                    </div>
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <FiSettings className="text-gray-500" /> Reason
+                    </label>
+                    <textarea
+                      name="reason"
+                      rows={2}
+                      required
+                      disabled={fieldsDisabled}
+                      className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:opacity-50"
+                      placeholder="Reason for editing this record"
+                    />
                   </div>
                 )}
 
-                {/* Form Actions */}
+                {/* Actions */}
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                   <button
                     type="button"
@@ -400,7 +412,7 @@ export default function AddRecordModal({ record }: AddRecordModalProps) {
                   </button>
                   <SubmitButton
                     isPending={isPending}
-                    label={isEdit ? "Update Record" : "Submit Records"}
+                    label={isEdit ? "Update Record" : "Submit Record"}
                     className="px-6 py-3 rounded-xl font-medium"
                   />
                 </div>

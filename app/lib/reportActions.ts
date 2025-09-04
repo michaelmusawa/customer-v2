@@ -5,7 +5,8 @@ import { safeQuery } from "./db";
 export async function fetchSummaryStats(
   startDate?: string,
   endDate?: string,
-  station?: string
+  station?: string,
+  recordType: "invoice" | "receipt" = "invoice"
 ): Promise<{
   totalRecords: number;
   totalValue: number;
@@ -14,6 +15,10 @@ export async function fetchSummaryStats(
 }> {
   const clauses: string[] = [];
   const params: (string | number)[] = [];
+
+  // recordType filter (always applied, default = invoice)
+  clauses.push(`r.recordType = $${params.length + 1}`);
+  params.push(recordType);
 
   if (startDate && endDate) {
     clauses.push(
@@ -61,12 +66,17 @@ export async function fetchRankingData(
   endDate?: string,
   station?: string,
   rankBy?: string,
-  groupBy?: boolean
+  groupBy?: boolean,
+  recordType: "invoice" | "receipt" = "invoice"
 ): Promise<RankingDataItem[] | ShiftRankingSection[]> {
   const metric = rankBy ? `SUM(r.[value])` : `COUNT(*)`;
 
   const filters: string[] = [];
   const params: (string | number)[] = [];
+
+  // recordType filter first
+  filters.push(`r.recordType = $${params.length + 1}`);
+  params.push(recordType);
 
   if (startDate && endDate) {
     filters.push(
@@ -132,12 +142,17 @@ export async function fetchServiceRankingData(
   endDate?: string,
   station?: string,
   rankBy?: string,
-  groupByShiftFlag?: boolean
+  groupByShiftFlag?: boolean,
+  recordType: "invoice" | "receipt" = "invoice"
 ): Promise<ServiceRankingItem[] | ShiftServiceSection[]> {
   const metric = rankBy ? `SUM(r.[value])` : `COUNT(*)`;
 
   const filters: string[] = [];
   const params: (string | number)[] = [];
+
+  // recordType filter first
+  filters.push(`r.recordType = $${params.length + 1}`);
+  params.push(recordType);
 
   if (startDate && endDate) {
     filters.push(
@@ -201,10 +216,15 @@ export async function fetchServiceRankingData(
 export async function fetchShiftSummaryData(
   startDate?: string,
   endDate?: string,
-  station?: string
+  station?: string,
+  recordType: "invoice" | "receipt" = "invoice"
 ): Promise<ShiftSummaryItem[]> {
   const clauses: string[] = [];
   const params: (string | number)[] = [];
+
+  // recordType filter first
+  clauses.push(`r.recordType = $${params.length + 1}`);
+  params.push(recordType);
 
   if (startDate && endDate) {
     clauses.push(

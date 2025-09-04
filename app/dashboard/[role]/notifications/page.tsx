@@ -7,6 +7,7 @@ import Pagination from "@/components/ui/pagination";
 import Search from "@/components/ui/search";
 import TableSkeleton from "@/components/ui/TableSkeleton";
 import React, { Suspense } from "react";
+import AnalysisToggle from "@/components/ui/AnalysisToggle";
 
 const Page = async (props: {
   searchParams?: Promise<{
@@ -16,6 +17,7 @@ const Page = async (props: {
     page?: string;
     deleted?: boolean;
     success?: boolean;
+    analysis?: "invoice" | "receipt";
   }>;
   params?: Promise<{ role?: string }>;
 }) => {
@@ -29,11 +31,13 @@ const Page = async (props: {
   const startDate = searchParams?.startDate || "";
   const endDate = searchParams?.endDate || "";
   const currentPage = Number(searchParams?.page) || 1;
+  const analysis = searchParams?.analysis || "invoice";
   const totalPages = await fetchEditedRecordsPages(
     query,
     startDate,
     endDate,
-    role
+    role,
+    analysis
   );
 
   return (
@@ -49,6 +53,7 @@ const Page = async (props: {
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-5 mb-8">
+          // Replace the current filter section with this:
           <div className="flex flex-wrap gap-3 w-full mb-6">
             <div className="flex-1 min-w-[200px]">
               <Search placeholder="Search requests..." />
@@ -57,8 +62,10 @@ const Page = async (props: {
               placeholderStart="Start Date"
               placeholderEnd="End Date"
             />
+            <div className="flex-1 min-w-[200px]">
+              <AnalysisToggle />
+            </div>
           </div>
-
           <Suspense key={query + currentPage} fallback={<TableSkeleton />}>
             <EditedRecordsTable
               query={query}
@@ -66,9 +73,9 @@ const Page = async (props: {
               endDate={endDate}
               currentPage={currentPage}
               role={role}
+              analysis={analysis}
             />
           </Suspense>
-
           <div className="mt-6 flex justify-center">
             <Pagination totalPages={totalPages} />
           </div>

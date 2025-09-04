@@ -186,6 +186,8 @@ export async function GET(req: NextRequest) {
   const startDate = searchParams.get("startDate") || "";
   const endDate = searchParams.get("endDate") || "";
   const role = searchParams.get("role") || "";
+  const analysis =
+    (searchParams.get("analysis") as "invoice" | "receipt") || "invoice";
 
   try {
     // Fetch records without pagination
@@ -195,6 +197,7 @@ export async function GET(req: NextRequest) {
       endDate,
       role,
       1, // currentPage
+      analysis,
       0
     );
 
