@@ -136,54 +136,198 @@ export function extractFields(
   rawText: string,
   services: Service[]
 ): ExtractedFields {
-  const normalized = rawText.replace(/\s+/g, " ").trim();
+  // --- Helper: clean OCR noise/boilerplate ---
+  function cleanOcrText(raw: string): string {
+    return (
+      raw
+        .replace(/\s+/g, " ") // normalize whitespace
+        // trim common boilerplate blocks that pollute matches
+        .replace(/Please include invoice number.*?(?=PAGE\d+|$)/gi, "")
+        .replace(/POWEREDBY.*?(?=PAGE\d+|$)/gi, "")
+        .replace(/Scan this QR Code.*?(?=PAGE\d+|$)/gi, "")
+        .trim()
+    );
+  }
 
-  // 1) Customer Name
-  const customerMatch = normalized.match(
-    /(?:client|name)[\s:]+(.+?)(?=\s+(?:invoice|bill|application)[\s:]|$)/i
-  );
+  // --- Helper: insert spaces into glued ALL-CAPS org names ---
+  function deglueUppercaseName(n: string): string {
+    if (!n) return n;
+    let name = n.toUpperCase().replace(/\s+/g, " ").trim();
 
-  // 2) Invoice/Bill Number
-  const invoiceMatch = normalized.match(
-    /(?:invoice|bill)[\s]*(?:no|number)[\s:]*([A-Za-z0-9_\-]+)/i
-  );
+    // Remove trailing stray labels if any slipped in
+    name = name
+      .replace(/\b(APPLICATIONNO|INVOICENO|CUSTOMERNO)\b.*$/i, "")
+      .trim();
 
-  // 3) Total Amount
-  const amountMatch = normalized.match(
-    /(?:total|amount due|balance|grand total|bill total amount)[\s:]*\$?([\d,]+\.\d{2})\b/i
-  );
+    // Insert spaces before common tokens if glued
+    const tokens = [
+      "KENYA",
+      "UGANDA",
+      "TANZANIA",
+      "LIMITED",
+      "LTD",
+      "PLC",
+      "INC",
+      "LLC",
+      "CO",
+      "COMPANY",
+      "HOLDINGS",
+      "BANK",
+      "INSURANCE",
+      "UNIVERSITY",
+      "COUNTY",
+      "CITY",
+    ];
+    for (const t of tokens) {
+      const re = new RegExp(`([A-Z])(${t})\\b`, "g"); // ...XKENYA -> X KENYA
+      name = name.replace(re, "$1 $2");
+    }
 
-  // 4) Date & Time
-  const dateTimeMatch = normalized.match(
-    /date[\s&]*time[\s:]*([\d\/]+\s+\d{1,2}:\d{2}\s*(?:AM|PM))/i
-  );
+    // Clean leftover digits/punctuation inside the name
+    name = name
+      .replace(/[0-9.]+/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    return name;
+  }
 
-  // 5) Subservice / Service
+  // --- Helper: pick the best (closest-to-today) OCR date candidate; ISO out ---
+  function bestOcrDateFromText(
+    text: string,
+    referenceDate: Date = new Date()
+  ): string | null {
+    const months: Record<string, number> = {
+      JANUARY: 1,
+      FEBRUARY: 2,
+      MARCH: 3,
+      APRIL: 4,
+      MAY: 5,
+      JUNE: 6,
+      JULY: 7,
+      AUGUST: 8,
+      SEPTEMBER: 9,
+      OCTOBER: 10,
+      NOVEMBER: 11,
+      DECEMBER: 12,
+    };
+
+    const monthPattern =
+      "(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)";
+
+    // 1) Properly spaced: "JANUARY 02 2025"
+    const spaced = new RegExp(
+      `${monthPattern}\\s*([0-9Oolib]{1,2})\\s*([0-9Oolib]{4})`,
+      "gi"
+    );
+    // 2) Fused: "JANUARY622025" (day + year stuck together)
+    const fused = new RegExp(`${monthPattern}\\s*([0-9Oolib]{5,6})\\b`, "gi");
+
+    const candidates: Date[] = [];
+
+    function pushCandidate(monthStr: string, dayStr: string, yearStr: string) {
+      // Fix OCR misreads
+      const fix = (s: string) => s.replace(/[Oo]/g, "0").replace(/[ilI]/g, "1");
+      // Special: day often has '6'/'8' for '0'
+      const fixDay = (s: string) => fix(s).replace(/[68]/g, "0");
+
+      const month = months[monthStr.toUpperCase()];
+      let day = parseInt(fixDay(dayStr), 10);
+      const year = parseInt(fix(yearStr), 10);
+
+      if (!month || isNaN(day) || isNaN(year)) return;
+
+      // Clamp to a real calendar day
+      if (day < 1) day = 1;
+      if (day > 31) day = 31;
+
+      const d = new Date(year, month - 1, day);
+      if (!isNaN(d.getTime())) candidates.push(d);
+    }
+
+    let m: RegExpExecArray | null;
+    while ((m = spaced.exec(text)) !== null) {
+      const [, monthStr, dayStr, yearStr] = m;
+      pushCandidate(monthStr, dayStr, yearStr);
+    }
+    while ((m = fused.exec(text)) !== null) {
+      const [, monthStr, fusedDigits] = m;
+      // Split: last 4 = year, first 1–2 = day
+      const yearStr = fusedDigits.slice(-4);
+      const dayStr = fusedDigits.slice(0, fusedDigits.length - 4);
+      pushCandidate(monthStr, dayStr, yearStr);
+    }
+
+    if (candidates.length === 0) return null;
+
+    // Choose the date closest to referenceDate (no "snap" overrides)
+    let best = candidates[0];
+    let bestDiff = Math.abs(best.getTime() - referenceDate.getTime());
+    for (const c of candidates) {
+      const diff = Math.abs(c.getTime() - referenceDate.getTime());
+      if (diff < bestDiff) {
+        best = c;
+        bestDiff = diff;
+      }
+    }
+    return best.toISOString().split("T")[0];
+  }
+
+  const normalized = cleanOcrText(rawText);
+
+  // --- 1) Customer Name (stop at next label via lookahead) ---
+  const nameMatch =
+    normalized.match(
+      /CUSTOMERNAME\.?:\s*([A-Z0-9 ]+?)(?=\s+(?:APPLICATIONNO|INVOICENO|CUSTOMERNO|BILLTO|DATE|ITEM|DESCRIPTION|NARRATIVE|PAGE\d+|POWEREDBY)\b|$)/i
+    ) ||
+    normalized.match(
+      /(?:\bCLIENT|\bNAME)\s*[:\-]\s*([A-Z0-9 ]+?)(?=\s+(?:INVOICE|BILL|APPLICATION)\b|$)/i
+    );
+
+  let customerName = nameMatch?.[1]?.trim() ?? null;
+  if (customerName) customerName = deglueUppercaseName(customerName);
+
+  // --- 2) Invoice/Bill Number (anchored; avoid "include invoice number on your cheque") ---
+  const invoiceMatch =
+    normalized.match(
+      /(?:INVOICENO|INVOICE\s*NO\.?|INVOICE\s*NUMBER)\s*[.:#-]?\s*([A-Z0-9\-]+)/i
+    ) ||
+    normalized.match(/(?:BILL\s*(?:NO|NUMBER))\s*[.:#-]?\s*([A-Z0-9\-]+)/i);
+  const recordNumber = invoiceMatch?.[1]?.trim() ?? null;
+
+  // --- 3) Total Amount ---
+  const amountMatch =
+    normalized.match(
+      /(?:GRAND\s*TOTAL(?:\s*KES)?|TOTAL\s*AMOUNT|AMOUNT\s*DUE|BALANCE|BILL\s*TOTAL\s*AMOUNT)\s*[.:]?\s*\$?([\d,]+\.\d{2})\b/i
+    ) || normalized.match(/GRANDTOTALKES\s+([\d,]+\.\d{2})/i);
+
+  // --- 4) Date (find best candidate across whole text) ---
+  // Prefer explicit "BILLTO DATE ..." region if present, else global scan
+  const billtoRegion =
+    normalized.match(/BILLTO\s*DATE\s*([A-Z0-9 ]{5,20})/i)?.[0] ?? normalized;
+  const fixedDate =
+    bestOcrDateFromText(billtoRegion) || bestOcrDateFromText(normalized);
+
+  // --- 5) Service/Subservice inference ---
   let foundSub: string | null = null;
   let foundSvc: string | null = null;
   const lower = normalized.toLowerCase();
 
-  // special case: "land rate for" → Annual Land rates
   if (lower.includes("land rate for")) {
     foundSub = "Annual Land rates";
     const svc = services.find((s) =>
       s.subServices.some((ss) => ss.toLowerCase() === foundSub!.toLowerCase())
     );
     foundSvc = svc?.name ?? null;
-  }
-
-  // special case: "UBP" → Service = "Single/Unified Business Permits"
-  else if (normalized.includes("UBP")) {
+  } else if (normalized.includes("UBP")) {
     const svc = services.find(
       (s) =>
         s.name.toLowerCase() === "single/unified business permits".toLowerCase()
     );
     foundSvc = svc?.name ?? "Single/Unified Business Permits";
-    // pick the only subservice from DB (if available)
-    foundSub = svc?.subServices?.[0] ?? null;
+    // pick a sensible default subservice if DB has one
+    foundSub = svc?.subServices?.[0] ?? "Single Business Permits";
   }
 
-  // fallback: scan DB-provided services list
   if (!foundSub) {
     outer: for (const svc of services) {
       for (const sub of svc.subServices) {
@@ -196,16 +340,19 @@ export function extractFields(
     }
   }
 
-  return {
+  const result: ExtractedFields = {
     ticket: "T-DAEMON",
     recordType: "invoice",
-    name: customerMatch?.[1]?.trim() ?? null,
-    recordNumber: invoiceMatch?.[1]?.trim() ?? null,
-    service: foundSvc,
-    subservice: foundSub,
+    name: customerName ?? null,
+    recordNumber: recordNumber ?? null,
+    service: foundSvc ?? null,
+    subservice: foundSub ?? null,
     value: amountMatch?.[1]?.trim() ?? null,
-    date: dateTimeMatch?.[1]?.trim() ?? null,
+    date: fixedDate ?? null,
   };
+
+  console.log("Extracted fields:", result);
+  return result;
 }
 
 // === helper: map a row to your invoice-fields shape ===

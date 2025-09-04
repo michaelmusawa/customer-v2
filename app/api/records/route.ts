@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
     const services = await loadServices();
 
     if (payload.type === "pdf") {
+      console.log("Processing PDF content:", payload.content);
       const fields = extractFields(payload.content, services);
       validate(fields);
       records.push(fields);
