@@ -333,10 +333,10 @@ export function extractFields(
   // --- 1) Customer Name ---
   const nameMatch =
     normalized.match(
-      /CUSTOMERNAME\.?:\s*([A-Z0-9 ]+?)(?=\s+(?:APPLICATIONNO|INVOICENO|CUSTOMERNO|BILLTO|DATE|ITEM|DESCRIPTION|NARRATIVE|PAGE\d+|POWEREDBY)\b|$)/i
+      /CUSTOMERNAME\.?:\s*([A-Z0-9 ]+?)(?=\s+(?:APPLICATIONNO|INVOICENO|CUSTOMERNO|BILLTO|DATE|ITEM|DESCRIPTION|NARRATIVE|LANDPARCELNO|PAGE\d+|POWEREDBY)\b|$)/i
     ) ||
     normalized.match(
-      /(?:\bCLIENT|\bNAME)\s*[:\-]\s*([A-Z0-9 ]+?)(?=\s+(?:INVOICE|BILL|APPLICATION|RECEIPT)\b|$)/i
+      /(?:\bCLIENT|\bNAME)\s*[:\-]\s*([A-Z0-9 ]+?)(?=\s+(?:INVOICE|BILL|APPLICATION|RECEIPT|LANDPARCELNO|PAYER|DETAILS)\b|$)/i
     );
 
   let customerName = nameMatch?.[1]?.trim() ?? null;
@@ -347,7 +347,10 @@ export function extractFields(
     normalized.match(
       /(?:INVOICENO|INVOICE\s*NO\.?|INVOICE\s*NUMBER|RECEIPT\s*NO\.?|RECEIPT\s*NUMBER)\s*[.:#-]?\s*([A-Z0-9\-]+)/i
     ) ||
-    normalized.match(/(?:BILL\s*(?:NO|NUMBER))\s*[.:#-]?\s*([A-Z0-9\-]+)/i);
+    normalized.match(/(?:BILL\s*(?:NO|NUMBER))\s*[.:#-]?\s*([A-Z0-9\-]+)/i) ||
+    // FIX: allow line breaks & extra spaces after "Received From"
+    normalized.match(/RECEIVED\s+FROM[\s\n]+([A-Z0-9\-]+)/i);
+
   const recordNumber = numberMatch?.[1]?.trim() ?? null;
 
   // --- 3) Total Amount ---
@@ -368,7 +371,7 @@ export function extractFields(
   let foundSub: string | null = null;
   let foundSvc: string | null = null;
 
-  if (lower.includes("land rate for")) {
+  if (lower.includes("land rate for") || lower.includes("landratefor")) {
     foundSub = "Annual Land rates";
     const svc = services.find((s) =>
       s.subServices.some((ss) => ss.toLowerCase() === foundSub!.toLowerCase())
@@ -397,7 +400,7 @@ export function extractFields(
 
   const result: ExtractedFields = {
     ticket: "T-DAEMON",
-    recordType, // 🔑 auto-detected instead of hard-coded
+    recordType,
     name: customerName ?? null,
     recordNumber: recordNumber ?? null,
     service: foundSvc ?? null,
