@@ -53,7 +53,6 @@ const Page = async (props: {
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-5 mb-8">
-          // Replace the current filter section with this:
           <div className="flex flex-wrap gap-3 w-full mb-6">
             <div className="flex-1 min-w-[200px]">
               <Search placeholder="Search requests..." />

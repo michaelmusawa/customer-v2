@@ -321,7 +321,10 @@ export function extractFields(
     // Matches 5/6/25, 5/6/2025, 05-06-2025
     const m = text.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
     if (!m) return null;
-    let [, d, mth, y] = m;
+
+    const d = m[1];
+    const mth = m[2];
+    let y = m[3];
     if (y.length === 2) {
       // Expand 2-digit year to 20xx (simple heuristic)
       y = "20" + y;
@@ -365,7 +368,8 @@ export function extractFields(
   const fixedDate =
     extractExplicitDate(normalized) || // <-- new priority
     bestOcrDateFromText(normalized) ||
-    extractNumericDate(normalized);
+    extractNumericDate(normalized) ||
+    bestOcrDateFromText(billtoRegion);
 
   // --- 5) Service/Subservice inference (unchanged) ---
   let foundSub: string | null = null;
