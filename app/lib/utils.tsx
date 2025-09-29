@@ -288,7 +288,7 @@ const amountMatch =
     foundSub = svc?.subServices?.[0] ?? "Unified Business Permits";
   }
 
-// detect LR-based descriptions
+// detect LR-based descriptions-UBP without service and sub service
 if (/LR\s*[-]?|LRNo/i.test(normalized)) {
   foundSvc = "Land Rates";
   foundSub = "LR";
