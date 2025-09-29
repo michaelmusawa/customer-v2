@@ -1,0 +1,7 @@
+id,name,email,password,emailVerified,role,status,image,createdAt,updatedAt,counterId,shiftId,stationId,password_reset_expires,password_reset_token,token
+1,admin,admin@gmail.com,1234567,,admin,,,2025-07-02 11:44:16.72,,,,,,,
+2,Frank Obura,francobura@gmail.com,$2b$12$SE/KBdOot5ztpZ.jquwpDuV16GyWc4j4HlX6yZinPLU1icAvnvJZq,,coordinator,,,2025-07-02 11:46:53.445,,,,,,,
+3,Musawa,michaelmusawa@gmail.com,$2b$12$hNbKB7ql9mH.Vxeb6qlF4OoNmvFoqNHaFXn2JCOuxqCjWRqt0F6kK,,supervisor,,,2025-07-02 12:00:46.435,,,,1,,,
+8,Frank Obura,fimujar@nairobi.go.ke,$2b$12$369D/nHvqAEyDBkiN3ZMke4wSj77LjTMFtzoEb5tpyIeYV9XzZtg2,,supervisor,,,2025-07-04 12:27:26.758,,,,2,,,
+9,Brian John,stackbytess@gmail.com,$2b$12$YaEKAi7yIqu8SvIYoLaOe.TEBYoq.azyMoOV3hkdBnq/v/HOp89tm,,biller,,,2025-07-04 12:58:39.779,,6,4,2,,,$2b$12$25UHWTJAhKsstKNtn0RNEOp3XK5zxRTCoR9swu6u1VDnokslwhtre
+4,francis imujar,francisimujar@gmail.com,$2b$12$qgmMJZKXosXGeJe1amkQhOVhq7gvR9EEjyZCU/vxQXHE/Qq73MQAW,,biller,,,2025-07-02 12:11:32.965,,1,1,1,,,$2b$12$yj9WhPL3Q7C3/aqRJchZhuabqA9hj3nEP/O2ZytHzAc7O.BsOtOxe

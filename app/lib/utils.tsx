@@ -169,24 +169,7 @@ export function extractFields(
     return null;
   }
 
-  function extractExplicitDate(text: string): string | null {
-    // Matches: Date: Wednesday, May 21, 2025  OR Date Of Application:  5/6/25
-    const lineMatch = text.match(
-      /\bDate(?:\s*Of\s*Application)?\s*[:\-]?\s*([A-Za-z]+\s+\d{1,2},?\s*\d{4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i
-    );
-    if (!lineMatch) return null;
-
-    const rawDate = lineMatch[1].trim();
-
-    // Try native Date parser first
-    const dt = new Date(rawDate);
-    if (!isNaN(dt.getTime())) {
-      return dt.toISOString().split("T")[0];
-    }
-
-    // If not, try numeric fallback
-    return extractNumericDate(rawDate);
-  }
+  
 
   // --- Helper: insert spaces into glued ALL-CAPS org names ---
   function deglueUppercaseName(n: string): string {
@@ -231,85 +214,7 @@ export function extractFields(
   }
 
   // --- Helper: pick the best (closest-to-today) OCR date candidate; ISO out ---
-  function bestOcrDateFromText(
-    text: string,
-    referenceDate: Date = new Date()
-  ): string | null {
-    const months: Record<string, number> = {
-      JANUARY: 1,
-      FEBRUARY: 2,
-      MARCH: 3,
-      APRIL: 4,
-      MAY: 5,
-      JUNE: 6,
-      JULY: 7,
-      AUGUST: 8,
-      SEPTEMBER: 9,
-      OCTOBER: 10,
-      NOVEMBER: 11,
-      DECEMBER: 12,
-    };
-
-    const monthPattern =
-      "(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)";
-
-    // 1) Properly spaced: "JANUARY 02 2025"
-    const spaced = new RegExp(
-      `${monthPattern}\\s*([0-9Oolib]{1,2})\\s*([0-9Oolib]{4})`,
-      "gi"
-    );
-    // 2) Fused: "JANUARY622025" (day + year stuck together)
-    const fused = new RegExp(`${monthPattern}\\s*([0-9Oolib]{5,6})\\b`, "gi");
-
-    const candidates: Date[] = [];
-
-    function pushCandidate(monthStr: string, dayStr: string, yearStr: string) {
-      // Fix OCR misreads
-      const fix = (s: string) => s.replace(/[Oo]/g, "0").replace(/[ilI]/g, "1");
-      // Special: day often has '6'/'8' for '0'
-      const fixDay = (s: string) => fix(s).replace(/[68]/g, "0");
-
-      const month = months[monthStr.toUpperCase()];
-      let day = parseInt(fixDay(dayStr), 10);
-      const year = parseInt(fix(yearStr), 10);
-
-      if (!month || isNaN(day) || isNaN(year)) return;
-
-      // Clamp to a real calendar day
-      if (day < 1) day = 1;
-      if (day > 31) day = 31;
-
-      const d = new Date(year, month - 1, day);
-      if (!isNaN(d.getTime())) candidates.push(d);
-    }
-
-    let m: RegExpExecArray | null;
-    while ((m = spaced.exec(text)) !== null) {
-      const [, monthStr, dayStr, yearStr] = m;
-      pushCandidate(monthStr, dayStr, yearStr);
-    }
-    while ((m = fused.exec(text)) !== null) {
-      const [, monthStr, fusedDigits] = m;
-      // Split: last 4 = year, first 1–2 = day
-      const yearStr = fusedDigits.slice(-4);
-      const dayStr = fusedDigits.slice(0, fusedDigits.length - 4);
-      pushCandidate(monthStr, dayStr, yearStr);
-    }
-
-    if (candidates.length === 0) return null;
-
-    // Choose the date closest to referenceDate (no "snap" overrides)
-    let best = candidates[0];
-    let bestDiff = Math.abs(best.getTime() - referenceDate.getTime());
-    for (const c of candidates) {
-      const diff = Math.abs(c.getTime() - referenceDate.getTime());
-      if (diff < bestDiff) {
-        best = c;
-        bestDiff = diff;
-      }
-    }
-    return best.toISOString().split("T")[0];
-  }
+  
 
   const normalized = cleanOcrText(rawText);
   const lower = normalized.toLowerCase();
@@ -317,33 +222,21 @@ export function extractFields(
   // --- 🔑 Record type detection ---
   const recordType = extractRecordType(rawText);
 
-  function extractNumericDate(text: string): string | null {
-    // Matches 5/6/25, 5/6/2025, 05-06-2025
-    const m = text.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
-    if (!m) return null;
-
-    const d = m[1];
-    const mth = m[2];
-    let y = m[3];
-    if (y.length === 2) {
-      // Expand 2-digit year to 20xx (simple heuristic)
-      y = "20" + y;
-    }
-    const dt = new Date(parseInt(y), parseInt(mth) - 1, parseInt(d));
-    return isNaN(dt.getTime()) ? null : dt.toISOString().split("T")[0];
-  }
-
+  
   // --- 1) Customer Name ---
-  const nameMatch =
-    normalized.match(
-      /CUSTOMERNAME\.?:\s*([A-Z0-9 ]+?)(?=\s+(?:APPLICATIONNO|INVOICENO|CUSTOMERNO|BILLTO|DATE|ITEM|DESCRIPTION|NARRATIVE|LANDPARCELNO|PAGE\d+|POWEREDBY)\b|$)/i
-    ) ||
-    normalized.match(
-      /(?:\bCLIENT|\bNAME)\s*[:\-]\s*([A-Z0-9 ]+?)(?=\s+(?:INVOICE|BILL|APPLICATION|RECEIPT|LANDPARCELNO|PAYER|DETAILS)\b|$)/i
-    );
+  
 
-  let customerName = nameMatch?.[1]?.trim() ?? null;
-  if (customerName) customerName = deglueUppercaseName(customerName);
+  const nameMatch =
+  normalized.match(
+    /CUSTOMERNAME\.?:\s*([A-Z0-9'`’\-\. ]+?)(?=\s+(?:APPLICATIONNO|INVOICENO|CUSTOMERNO|BILLTO|DATE|ITEM|DESCRIPTION|NARRATIVE|LANDPARCELNO|PAGE\d+|POWEREDBY)\b|$)/i
+  ) ||
+  normalized.match(
+    /(?:\bCLIENT|\bNAME)\s*[:\-]\s*([A-Z0-9'`’\-\. ]+?)(?=\s+(?:INVOICE|BILL|APPLICATION|RECEIPT|LANDPARCELNO|PAYER|DETAILS)\b|$)/i
+  );
+
+let customerName = nameMatch?.[1]?.trim() ?? null;
+if (customerName) customerName = deglueUppercaseName(customerName);
+
 
   // --- 2) Invoice/Receipt/Bill Number ---
   const numberMatch =
@@ -365,11 +258,9 @@ export function extractFields(
   // --- 4) Date (unchanged) ---
   const billtoRegion =
     normalized.match(/BILLTO\s*DATE\s*([A-Z0-9 ]{5,20})/i)?.[0] ?? normalized;
-  const fixedDate =
-    extractExplicitDate(normalized) || // <-- new priority
-    bestOcrDateFromText(normalized) ||
-    extractNumericDate(normalized) ||
-    bestOcrDateFromText(billtoRegion);
+  const fixedDate = Date.now().toString()
+  
+
 
   // --- 5) Service/Subservice inference (unchanged) ---
   let foundSub: string | null = null;
@@ -384,10 +275,10 @@ export function extractFields(
   } else if (normalized.includes("UBP")) {
     const svc = services.find(
       (s) =>
-        s.name.toLowerCase() === "single/unified business permits".toLowerCase()
+        s.name.toLowerCase() === "unified business permits".toLowerCase()
     );
-    foundSvc = svc?.name ?? "Single/Unified Business Permits";
-    foundSub = svc?.subServices?.[0] ?? "Single Business Permits";
+    foundSvc = svc?.name ?? "Unified Business Permits";
+    foundSub = svc?.subServices?.[0] ?? "Unified Business Permits";
   }
 
   if (!foundSub) {
