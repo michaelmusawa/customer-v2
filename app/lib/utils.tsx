@@ -224,9 +224,11 @@ export function extractFields(
 
   
   // --- 1) Customer Name ---
-  
-
-  const nameMatch =
+ 
+const nameMatch =
+  normalized.match(
+    /RECEIVED\s+FROM\s*[:\-]?\s*([A-Z0-9'`’\-\. ]+)/i
+  ) ||
   normalized.match(
     /CUSTOMERNAME\.?:\s*([A-Z0-9'`’\-\. ]+?)(?=\s+(?:APPLICATIONNO|INVOICENO|CUSTOMERNO|BILLTO|DATE|ITEM|DESCRIPTION|NARRATIVE|LANDPARCELNO|PAGE\d+|POWEREDBY)\b|$)/i
   ) ||
@@ -236,6 +238,7 @@ export function extractFields(
 
 let customerName = nameMatch?.[1]?.trim() ?? null;
 if (customerName) customerName = deglueUppercaseName(customerName);
+
 
 
   // --- 2) Invoice/Receipt/Bill Number ---
@@ -249,16 +252,20 @@ if (customerName) customerName = deglueUppercaseName(customerName);
 
   const recordNumber = numberMatch?.[1]?.trim() ?? null;
 
-  // --- 3) Total Amount ---
-  const amountMatch =
-    normalized.match(
-      /(?:GRAND\s*TOTAL(?:\s*KES)?|TOTAL(?:\s*AMOUNT)?(?:\s*KES)?|AMOUNT\s*DUE|BALANCE|BILL\s*TOTAL\s*AMOUNT|AMOUNT\s*RECEIVED|SERVICE\s*AMOUNT)\s*[.:]?\s*\$?([\d,]+\.\d{2})\b/i
-    ) || normalized.match(/GRANDTOTALKES\s+([\d,]+\.\d{2})/i);
+// --- 3) Total Amount ---
+const amountMatch =
+  normalized.match(
+    /(?:GRAND\s*TOTAL(?:\s*KES)?|TOTAL(?:\s*AMOUNT)?(?:\s*KES)?|AMOUNT\s*DUE|BALANCE|BILL\s*TOTAL\s*AMOUNT|AMOUNT\s*RECEIVED|SERVICE\s*AMOUNT)\s*[.:]?\s*\$?([\d,]+\.\d{2})\b/i
+  ) ||
+  normalized.match(/GRANDTOTALKES\s+([\d,]+\.\d{2})/i) ||
+  normalized.match(/([\d,]+\.\d{2})(?!.*[\d,]+\.\d{2})/);
+
+
 
   // --- 4) Date (unchanged) ---
-  const billtoRegion =
-    normalized.match(/BILLTO\s*DATE\s*([A-Z0-9 ]{5,20})/i)?.[0] ?? normalized;
-  const fixedDate = Date.now().toString()
+   
+  const fixedDate = new Date().toString();
+
   
 
 
@@ -280,6 +287,14 @@ if (customerName) customerName = deglueUppercaseName(customerName);
     foundSvc = svc?.name ?? "Unified Business Permits";
     foundSub = svc?.subServices?.[0] ?? "Unified Business Permits";
   }
+
+// detect LR-based descriptions
+if (/LR\s*[-]?|LRNo/i.test(normalized)) {
+  foundSvc = "Land Rates";
+  foundSub = "LR";
+}
+
+
 
   if (!foundSub) {
     outer: for (const svc of services) {
