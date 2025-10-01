@@ -294,7 +294,11 @@ if (/LR\s*[-]?|LRNo/i.test(normalized)) {
   foundSub = "LR";
 }
 
-
+// --- Special case: Unified Business Permit (UBP) ---
+if (/\bUBP\b|UNIFIED\s+BUSINESS\s+PERMIT/i.test(normalized)) {
+  foundSvc = "Unified Business Permit";
+  foundSub = "UBP";
+}
 
   if (!foundSub) {
     outer: for (const svc of services) {
