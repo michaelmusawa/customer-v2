@@ -247,10 +247,13 @@ if (customerName) customerName = deglueUppercaseName(customerName);
       /(?:INVOICENO|INVOICE\s*NO\.?|INVOICE\s*NUMBER|RECEIPT\s*NO\.?|RECEIPT\s*NUMBER)\s*[.:#-]?\s*([A-Z0-9\-]+)/i
     ) ||
     normalized.match(/(?:BILL\s*(?:NO|NUMBER))\s*[.:#-]?\s*([A-Z0-9\-]+)/i) ||
+    // allow patterns like "Payment Receipt BL-LR-1ED5BA0F"
+  normalized.match(/(?:PAYMENT\s+RECEIPT|RECEIPT)\s+([A-Z0-9\-]{6,})/i) ||
     // FIX: allow line breaks & extra spaces after "Received From"
     normalized.match(/RECEIVED\s+FROM[\s\n]+([A-Z0-9\-]+)/i);
 
   const recordNumber = numberMatch?.[1]?.trim() ?? null;
+
 
 // --- 3) Total Amount ---
 const amountMatch =
