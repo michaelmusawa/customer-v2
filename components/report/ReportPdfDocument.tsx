@@ -46,6 +46,10 @@ const COLORS = {
   headerBg: "#F0F0F0", // Light gray for headers
 };
 
+// Helper
+const formatName = (name: string) =>
+  name ? name.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : "";
+
 const styles = StyleSheet.create({
   page: {
     padding: 30,
@@ -164,6 +168,21 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: COLORS.secondary,
   },
+  cellLeft: {
+    flex: 1,
+    padding: 6,
+    fontSize: 9,
+    textAlign: "left",
+    color: COLORS.secondary,
+  },
+  currencyCell: {
+    flex: 1,
+    padding: 6,
+    fontSize: 9,
+    textAlign: "right",
+    color: COLORS.secondary,
+  },
+
   groupHeader: {
     backgroundColor: COLORS.headerBg,
     padding: 6,
@@ -211,6 +230,14 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: 700,
     textAlign: "center",
+    color: COLORS.primary,
+  },
+  totalsCellRight: {
+    flex: 1,
+    padding: 6,
+    fontSize: 9,
+    fontWeight: 700,
+    textAlign: "right",
     color: COLORS.primary,
   },
   summaryContainer: {
@@ -365,14 +392,15 @@ export default function ReportPdfDocument(raw: ReportData) {
                 {group.items.map((item, ri) => (
                   <View style={styles.row} key={ri}>
                     <Text style={styles.cell}>{ri + 1}</Text>
-                    <Text style={styles.cell}>
+                    <Text style={styles.cellLeft}>
                       {isService
-                        ? (item as ServiceRankingItem).service
-                        : (item as RankingDataItem).key}
+                        ? formatName((item as ServiceRankingItem).service)
+                        : formatName((item as RankingDataItem).key)}
                     </Text>
+
                     <Text style={styles.cell}>{item.count}</Text>
                     <Text style={styles.cell}>{item.clients}</Text>
-                    <Text style={styles.cell}>
+                    <Text style={styles.currencyCell}>
                       {formatCurrency(safeNumber(item.value))}
                     </Text>
                   </View>
@@ -391,7 +419,7 @@ export default function ReportPdfDocument(raw: ReportData) {
                       0
                     )}
                   </Text>
-                  <Text style={styles.totalsCell}>
+                  <Text style={styles.totalsCellRight}>
                     {formatCurrency(
                       group.items.reduce(
                         (sum, i) => sum + safeNumber(i.value),
@@ -419,14 +447,14 @@ export default function ReportPdfDocument(raw: ReportData) {
         {(data as (RankingDataItem | ServiceRankingItem)[]).map((item, ri) => (
           <View style={styles.row} key={ri}>
             <Text style={styles.cell}>{ri + 1}</Text>
-            <Text style={styles.cell}>
+            <Text style={styles.cellLeft}>
               {isService
-                ? (item as ServiceRankingItem).service
-                : (item as RankingDataItem).key}
+                ? formatName((item as ServiceRankingItem).service)
+                : formatName((item as RankingDataItem).key)}
             </Text>
             <Text style={styles.cell}>{item.count}</Text>
             <Text style={styles.cell}>{item.clients}</Text>
-            <Text style={styles.cell}>
+            <Text style={styles.currencyCell}>
               {formatCurrency(safeNumber(item.value))}
             </Text>
           </View>
@@ -445,7 +473,7 @@ export default function ReportPdfDocument(raw: ReportData) {
               0
             )}
           </Text>
-          <Text style={styles.totalsCell}>
+          <Text style={styles.totalsCellRight}>
             {formatCurrency(
               data.reduce(
                 (sum, i) => sum + safeNumber("value" in i ? i.value : 0),

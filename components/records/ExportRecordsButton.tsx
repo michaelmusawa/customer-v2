@@ -9,14 +9,18 @@ interface ExportButtonProps {
   query: string;
   startDate: string;
   endDate: string;
+  currentPage: number;
   role: string;
+  analysis: "invoice" | "receipt";
 }
 
 const ExportRecordsButton = ({
   query,
   startDate,
   endDate,
+  currentPage,
   role,
+  analysis,
 }: ExportButtonProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
@@ -30,14 +34,17 @@ const ExportRecordsButton = ({
         query,
         startDate,
         endDate,
+        currentPage: currentPage.toString(),
         role,
-        noPagination: "true",
+        analysis,
       }).toString();
 
       const response = await fetch(`/api/records?${params}`);
       if (!response.ok) throw new Error("Failed to fetch records");
 
       const records = await response.json();
+
+      console.log("Fetched records for export:", records);
 
       // Prepare worksheet
       interface Record {

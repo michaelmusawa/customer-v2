@@ -62,7 +62,9 @@ const Page = async (props: {
                 query={query}
                 startDate={startDate}
                 endDate={endDate}
+                currentPage={currentPage}
                 role={role}
+                analysis={analysis}
               />
             </div>
 

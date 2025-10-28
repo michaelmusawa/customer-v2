@@ -182,6 +182,8 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
+  console.log("Received GET with params:", Object.fromEntries(searchParams));
+
   const query = searchParams.get("query") || "";
   const startDate = searchParams.get("startDate") || "";
   const endDate = searchParams.get("endDate") || "";
@@ -197,8 +199,7 @@ export async function GET(req: NextRequest) {
       endDate,
       role,
       1, // currentPage
-      analysis,
-      0
+      analysis
     );
 
     return new Response(JSON.stringify(records), {
