@@ -131,7 +131,7 @@ export default async function RankingTable({
               </div>
             );
           })
-        : renderTable(allData as RankingDataItem[])}
+        : renderTable((allData as RankingDataItem[]).slice(0, 5))}
 
       <div className="mt-4 text-right">
         <FullRankingModal items={allData} rankBy={rankBy} groupBy={groupBy} />

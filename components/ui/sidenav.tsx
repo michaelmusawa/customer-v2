@@ -38,11 +38,11 @@ export default async function SideNav() {
           >
             <button
               type="submit"
-              className="group flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 p-3 text-sm font-medium transition-all duration-300 hover:from-red-600 hover:to-red-700 hover:shadow-lg"
+              className="group flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 p-3 text-sm font-medium transition-all duration-300 hover:from-red-600 hover:to-red-700 hover:shadow-lg"
             >
               <div className="flex items-center gap-2">
-                <SignOutIcon className="w-5 text-gray-600 group-hover:text-white group-hover:animate-pulse" />
-                <span className="hidden text-gray-600 group-hover:text-white md:block">
+                <SignOutIcon className="w-5 text-gray-600 dark:text-gray-50 group-hover:text-white group-hover:animate-pulse" />
+                <span className="hidden text-gray-600 dark:text-gray-50 group-hover:text-white md:block">
                   Sign Out
                 </span>
               </div>

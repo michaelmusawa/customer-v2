@@ -44,52 +44,52 @@ export default function ViewRecordModal({ record }: ViewRecordModalProps) {
 
             {/* Content */}
             <dl className="grid grid-cols-2 gap-4">
-              <dt className="font-medium text-gray-700 dark:text-gray-300">
+              <dt className="font-medium text-gray-700 dark:text-gray-300 text-left">
                 Ticket
               </dt>
-              <dd className="text-gray-900 dark:text-gray-100">
+              <dd className="text-gray-900 dark:text-gray-100 text-left">
                 {record.ticket}
               </dd>
 
-              <dt className="font-medium text-gray-700 dark:text-gray-300">
+              <dt className="font-medium text-gray-700 dark:text-gray-300 text-left">
                 Name
               </dt>
-              <dd className="text-gray-900 dark:text-gray-100">
+              <dd className="text-gray-900 dark:text-gray-100 text-left">
                 {record.name}
               </dd>
 
-              <dt className="font-medium text-gray-700 dark:text-gray-300">
+              <dt className="font-medium text-gray-700 dark:text-gray-300 text-left">
                 Type
               </dt>
-              <dd className="text-gray-900 dark:text-gray-100">
+              <dd className="text-gray-900 dark:text-gray-100 text-left">
                 {record.recordType ?? "-"}
               </dd>
 
-              <dt className="font-medium text-gray-700 dark:text-gray-300">
+              <dt className="font-medium text-gray-700 dark:text-gray-300 text-left">
                 Service
               </dt>
-              <dd className="text-gray-900 dark:text-gray-100">
+              <dd className="text-gray-900 dark:text-gray-100 text-left">
                 {record.service}
               </dd>
 
-              <dt className="font-medium text-gray-700 dark:text-gray-300">
+              <dt className="font-medium text-gray-700 dark:text-gray-300 text-left">
                 Sub-Service
               </dt>
-              <dd className="text-gray-900 dark:text-gray-100">
+              <dd className="text-gray-900 dark:text-gray-100 text-left">
                 {record.subService ?? "-"}
               </dd>
 
-              <dt className="font-medium text-gray-700 dark:text-gray-300">
+              <dt className="font-medium text-gray-700 dark:text-gray-300 text-left">
                 Value
               </dt>
-              <dd className="text-green-600 dark:text-green-400">
+              <dd className="text-green-600 dark:text-green-400 text-left">
                 KES {record.value.toLocaleString()}
               </dd>
 
-              <dt className="font-medium text-gray-700 dark:text-gray-300">
+              <dt className="font-medium text-gray-700 dark:text-gray-300 text-left">
                 Created At
               </dt>
-              <dd className="text-gray-900 dark:text-gray-100">
+              <dd className="text-gray-900 dark:text-gray-100 text-center">
                 {new Date(record.createdAt).toLocaleString()}
               </dd>
             </dl>

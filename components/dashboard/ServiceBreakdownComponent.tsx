@@ -31,7 +31,7 @@ const ServiceBreakdownComponent = ({
             outerRadius={100}
             paddingAngle={2}
             label={({ name, percent }) =>
-              `${name}: ${(percent * 100).toFixed(0)}%`
+              percent > 0.05 ? `${name}: ${(percent * 100).toFixed(0)}%` : ""
             }
             labelLine={false}
           >
@@ -53,11 +53,11 @@ const ServiceBreakdownComponent = ({
             layout="vertical"
             verticalAlign="middle"
             align="right"
-            formatter={(value) => (
-              <span className="text-gray-700 dark:text-gray-300 text-sm">
-                {value}
-              </span>
-            )}
+            wrapperStyle={{
+              maxHeight: 200,
+              maxWidth: 120,
+              overflowY: "auto",
+            }}
           />
         </PieChart>
       </ResponsiveContainer>

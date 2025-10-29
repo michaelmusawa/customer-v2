@@ -37,7 +37,7 @@ const Page = async (props: {
 
   return (
     <main className="min-h-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 text-gray-900 dark:text-gray-100 p-4 md:p-6">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-5 md:p-7 transition-all">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-5 md:p-7 transition-all max-w-7xl mx-auto">
         {/* Filter Section */}
         <div className="mb-8 pb-6 border-b border-gray-100 dark:border-gray-700">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -53,14 +53,14 @@ const Page = async (props: {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-7 gap-4 items-center">
             <div className="md:col-span-2">
               <DateRangeFilter
                 placeholderStart="Start Date"
                 placeholderEnd="End Date"
               />
             </div>
-            <div className="md:col-span-2">
+            <div className="md:col-span-2 mr-24">
               <StationFilter />
             </div>
             <div className="md:col-span-3 flex gap-3">

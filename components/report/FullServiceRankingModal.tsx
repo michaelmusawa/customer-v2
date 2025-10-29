@@ -88,7 +88,7 @@ export default function FullServiceRankingModal({
                     {idx + 1}
                   </span>
                 </td>
-                <td className="py-4 px-5 font-medium text-gray-900 dark:text-gray-100">
+                <td className="py-4 px-5 font-medium text-gray-900 text-left dark:text-gray-100">
                   {item.service}
                 </td>
                 <td className="py-4 px-5 text-right">{item.count}</td>
