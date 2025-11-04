@@ -106,9 +106,9 @@ export async function fetchSummaryStats(
       WHERE er.recordId IN (SELECT id FROM base)
     )
     SELECT
-      CAST((SELECT COUNT(*) FROM base) AS INT) AS totalRecords,
-      CAST(COALESCE((SELECT SUM(value) FROM base), 0) AS BIGINT) AS totalValue,
-      CAST((SELECT COUNT(DISTINCT client) FROM base) AS INT) AS totalClients,
+      CAST((SELECT COUNT(*) FROM base) AS BIGINT) AS totalRecords,
+     CAST(COALESCE((SELECT SUM(CAST(value AS BIGINT)) FROM base), 0) AS BIGINT) AS totalValue,
+      CAST((SELECT COUNT(DISTINCT client) FROM base) AS BIGINT) AS totalClients,
       CASE
         WHEN (SELECT COUNT(*) FROM base)=0 THEN 0
         ELSE CAST(ROUND(
@@ -145,7 +145,7 @@ export async function fetchTimeSeries(
   const sql = `
     SELECT
       CONVERT(VARCHAR(10), r.createdAt, 23) AS date, -- yyyy-MM-dd
-      CAST(COUNT(*) AS INT) AS count, r.recordType
+      CAST(COUNT(*) AS BIGINT) AS count, r.recordType
     FROM records r
     JOIN [User] u ON u.id = r.userId
     LEFT JOIN stations st ON st.id = u.stationId
@@ -175,7 +175,7 @@ export async function fetchServiceBreakdown(
   const sql = `
     SELECT
       r.service AS name,
-      CAST(COUNT(*) AS INT) AS value,
+      CAST(COUNT(*) AS BIGINT) AS value,
       r.recordType
     FROM records r
     JOIN [User] u ON u.id = r.userId
@@ -207,7 +207,7 @@ export async function fetchShiftDistribution(
   const sql = `
     SELECT
       sh.name AS name,
-      CAST(COUNT(*) AS INT) AS value,
+      CAST(COUNT(*) AS BIGINT) AS value,
       r.recordType
     FROM records r
     JOIN [User] u ON u.id = r.userId
@@ -283,8 +283,8 @@ export async function fetchTopBillers(
       u.id AS userId,
       u.name AS name,
       r.recordType,
-      CAST(COUNT(*) AS INT) AS count,
-      CAST(COALESCE(SUM(r.value),0) AS BIGINT) AS value
+      CAST(COUNT(*) AS BIGINT) AS count,
+      COALESCE(SUM(CAST(r.value AS BIGINT)), 0) AS value
     FROM records r
     JOIN [User] u ON u.id = r.userId
     LEFT JOIN stations st ON st.id = u.stationId
@@ -342,8 +342,8 @@ export async function fetchTopServices(
   const sql = `
     SELECT TOP 5
       r.service AS name,
-      CAST(COUNT(*) AS INT) AS count,
-      CAST(COALESCE(SUM(r.value),0) AS BIGINT) AS value,
+      CAST(COUNT(*) AS BIGINT) AS count,
+      COALESCE(SUM(CAST(r.value AS BIGINT)), 0) AS value,
       r.recordType
     FROM records r
     JOIN [User] u ON u.id = r.userId

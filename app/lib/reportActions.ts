@@ -42,10 +42,10 @@ export async function fetchSummaryStats(
 
   const sql = `
     SELECT
-      CAST(COUNT(*) AS int)                        AS totalRecords,
-      CAST(COALESCE(SUM(r.[value]),0) AS int)      AS totalValue,
-      CAST(COUNT(DISTINCT r.service) AS int)       AS totalServices,
-      CAST(COUNT(DISTINCT r.[name]) AS int)        AS totalClients
+      CAST(COUNT(*) AS BIGINT)                              AS totalRecords,
+      COALESCE(SUM(CAST(r.[value] AS BIGINT)), 0)           AS totalValue,
+      CAST(COUNT(DISTINCT r.service) AS BIGINT)             AS totalServices,
+      CAST(COUNT(DISTINCT r.[name]) AS BIGINT)              AS totalClients
     FROM records r
     JOIN [User] u ON u.id = r.userId
     LEFT JOIN stations st ON u.stationId = st.id
@@ -124,7 +124,7 @@ export async function fetchRankingData(
         u.[name]                 AS [key],
         COUNT(*)                 AS count,
         COUNT(DISTINCT r.[name]) AS clients,
-        COALESCE(SUM(r.[value]),0) AS [value]
+        COALESCE(SUM(CAST(r.[value] AS BIGINT)), 0) AS [value]
       FROM records r
       JOIN [User] u    ON r.userId = u.id
       JOIN stations st ON u.stationId = st.id
@@ -145,7 +145,7 @@ export async function fetchServiceRankingData(
   groupByShiftFlag?: boolean,
   recordType: "invoice" | "receipt" = "invoice"
 ): Promise<ServiceRankingItem[] | ShiftServiceSection[]> {
-  const metric = rankBy ? `SUM(r.[value])` : `COUNT(*)`;
+  const metric = rankBy ? `SUM(CAST(r.[value] AS BIGINT))` : `COUNT(*)`;
 
   const filters: string[] = [];
   const params: (string | number)[] = [];
@@ -178,7 +178,7 @@ export async function fetchServiceRankingData(
           r.service                 AS service,
           COUNT(*)                  AS count,
           COUNT(DISTINCT r.[name])  AS clients,
-          COALESCE(SUM(r.[value]),0) AS [value]
+          COALESCE(SUM(CAST(r.[value] AS BIGINT)), 0) AS [value]
         FROM records r
         JOIN [User] u    ON r.userId = u.id
         JOIN shifts sh   ON u.shiftId = sh.id
@@ -200,7 +200,7 @@ export async function fetchServiceRankingData(
         r.service                 AS service,
         COUNT(*)                  AS count,
         COUNT(DISTINCT r.[name])  AS clients,
-        COALESCE(SUM(r.[value]),0) AS [value]
+        COALESCE(SUM(CAST(r.[value] AS BIGINT)), 0) AS [value]
       FROM records r
       JOIN [User] u    ON r.userId = u.id
       JOIN stations st ON u.stationId = st.id
@@ -251,7 +251,7 @@ export async function fetchShiftSummaryData(
       sh.[name]                AS shift,
       COUNT(*)                 AS count,
       COUNT(DISTINCT r.[name]) AS clients,
-      COALESCE(SUM(r.[value]),0) AS [value]
+      COALESCE(SUM(CAST(r.[value] AS BIGINT)), 0) AS [value]
     FROM records r
     JOIN [User] u    ON r.userId = u.id
     JOIN shifts sh   ON u.shiftId = sh.id
