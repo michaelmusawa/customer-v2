@@ -215,6 +215,55 @@ export function extractFields(
 
   // --- Helper: pick the best (closest-to-today) OCR date candidate; ISO out ---
   
+// --- 4) Date extraction from raw text ---
+function extractLatestDate(text: string): string | null {
+  const datePatterns = [
+    /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/g,          // 05/11/2025, 11-5-25
+    /\b\d{1,2}\s*[A-Za-z]{3,9}\s*\d{2,4}\b/g,          // 05 Nov 2025, 13 October 2025
+    /\b[A-Za-z]+,\s*[A-Za-z]{3,9}\s*\d{1,2},\s*\d{4}\b/g, // Monday, October 13, 2025
+    /\b\d{1,2}[\/\-][A-Za-z]{3,9}[\/\-]\d{2,4}\b/g,    // 05-Nov-25
+  ];
+
+  const candidates: Date[] = [];
+
+  for (const pattern of datePatterns) {
+    const matches = text.match(pattern);
+    if (!matches) continue;
+
+    for (let raw of matches) {
+      raw = raw.trim().replace(/[\-]/g, "/");
+
+      let parsed = new Date(raw);
+      if (isNaN(parsed.getTime())) {
+        // Try parsing short year or swapped day/month
+        const parts = raw.split("/");
+        if (parts.length === 3) {
+          let [a, b, c] = parts.map((x) => x.replace(/\D/g, ""));
+          if (!a || !b || !c) continue;
+
+          let y = c.length === 2 ? "20" + c : c;
+          let m = parseInt(b) > 12 && parseInt(a) <= 12 ? a : b;
+          let d = parseInt(b) > 12 && parseInt(a) <= 12 ? b : a;
+
+          const iso = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+          parsed = new Date(iso);
+        }
+      }
+
+      if (!isNaN(parsed.getTime())) {
+        candidates.push(parsed);
+      }
+    }
+  }
+
+  if (candidates.length === 0) return null;
+
+  // pick the most recent date
+  const latest = new Date(Math.max(...candidates.map((d) => d.getTime())));
+  return latest.toISOString().split("T")[0]; // YYYY-MM-DD
+}
+
+
 
   const normalized = cleanOcrText(rawText);
   const lower = normalized.toLowerCase();
@@ -252,7 +301,27 @@ if (customerName) customerName = deglueUppercaseName(customerName);
     // FIX: allow line breaks & extra spaces after "Received From"
     normalized.match(/RECEIVED\s+FROM[\s\n]+([A-Z0-9\-]+)/i);
 
-  const recordNumber = numberMatch?.[1]?.trim() ?? null;
+  let recordNumber = numberMatch?.[1]?.trim() ?? null;
+// --- Fallback: handle tricky "Received From" receipts and transaction Bill No cases ---
+if (!customerName || customerName.length < 4 || /\b(Date|TJL|TB|S0|TJQ)\b/i.test(customerName)) {
+  const receivedMatch = normalized.match(/RECEIVED\s+FROM\s+[A-Z0-9_\-]+\s+[0-9A-Za-z\-]+\s*\n?\s*([A-Z][A-Za-z'`\- ]{3,})/i);
+  if (receivedMatch) {
+    customerName = receivedMatch[1].trim();
+  } else {
+    // Try a simpler "Name:" field if it exists later
+    const nameField = normalized.match(/\bName\s*[:\-]\s*([A-Z][A-Za-z'`\- ]{2,})/i);
+    if (nameField) customerName = nameField[1].trim();
+  }
+}
+
+if (!recordNumber || /^Date$/i.test(recordNumber)) {
+  const billMatch =
+    normalized.match(/\bBill\s*No[:\s]+(BL-[A-Z0-9\-]+)/i) ||
+    normalized.match(/\bBL-[A-Z]{2,}-[A-Z0-9]{4,}\b/i);
+  if (billMatch) {
+    recordNumber = (billMatch[1] || billMatch[0]).trim();
+  }
+}
 
 
 // --- 3) Total Amount ---
@@ -267,7 +336,9 @@ const amountMatch =
 
   // --- 4) Date (unchanged) ---
    
-  const fixedDate = new Date().toString();
+  // Use it:
+const extractedDate = extractLatestDate(normalized);
+const fixedDate = extractedDate ?? new Date().toISOString().split("T")[0];
 
   
 
