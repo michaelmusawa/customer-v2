@@ -169,8 +169,6 @@ export function extractFields(
     return null;
   }
 
-  
-
   // --- Helper: insert spaces into glued ALL-CAPS org names ---
   function deglueUppercaseName(n: string): string {
     if (!n) return n;
@@ -214,56 +212,54 @@ export function extractFields(
   }
 
   // --- Helper: pick the best (closest-to-today) OCR date candidate; ISO out ---
-  
-// --- 4) Date extraction from raw text ---
-function extractLatestDate(text: string): string | null {
-  const datePatterns = [
-    /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/g,          // 05/11/2025, 11-5-25
-    /\b\d{1,2}\s*[A-Za-z]{3,9}\s*\d{2,4}\b/g,          // 05 Nov 2025, 13 October 2025
-    /\b[A-Za-z]+,\s*[A-Za-z]{3,9}\s*\d{1,2},\s*\d{4}\b/g, // Monday, October 13, 2025
-    /\b\d{1,2}[\/\-][A-Za-z]{3,9}[\/\-]\d{2,4}\b/g,    // 05-Nov-25
-  ];
 
-  const candidates: Date[] = [];
+  // --- 4) Date extraction from raw text ---
+  function extractLatestDate(text: string): string | null {
+    const datePatterns = [
+      /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/g, // 05/11/2025, 11-5-25
+      /\b\d{1,2}\s*[A-Za-z]{3,9}\s*\d{2,4}\b/g, // 05 Nov 2025, 13 October 2025
+      /\b[A-Za-z]+,\s*[A-Za-z]{3,9}\s*\d{1,2},\s*\d{4}\b/g, // Monday, October 13, 2025
+      /\b\d{1,2}[\/\-][A-Za-z]{3,9}[\/\-]\d{2,4}\b/g, // 05-Nov-25
+    ];
 
-  for (const pattern of datePatterns) {
-    const matches = text.match(pattern);
-    if (!matches) continue;
+    const candidates: Date[] = [];
 
-    for (let raw of matches) {
-      raw = raw.trim().replace(/[\-]/g, "/");
+    for (const pattern of datePatterns) {
+      const matches = text.match(pattern);
+      if (!matches) continue;
 
-      let parsed = new Date(raw);
-      if (isNaN(parsed.getTime())) {
-        // Try parsing short year or swapped day/month
-        const parts = raw.split("/");
-        if (parts.length === 3) {
-          let [a, b, c] = parts.map((x) => x.replace(/\D/g, ""));
-          if (!a || !b || !c) continue;
+      for (let raw of matches) {
+        raw = raw.trim().replace(/[\-]/g, "/");
 
-          let y = c.length === 2 ? "20" + c : c;
-          let m = parseInt(b) > 12 && parseInt(a) <= 12 ? a : b;
-          let d = parseInt(b) > 12 && parseInt(a) <= 12 ? b : a;
+        let parsed = new Date(raw);
+        if (isNaN(parsed.getTime())) {
+          // Try parsing short year or swapped day/month
+          const parts = raw.split("/");
+          if (parts.length === 3) {
+            const [a, b, c] = parts.map((x) => x.replace(/\D/g, ""));
+            if (!a || !b || !c) continue;
 
-          const iso = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-          parsed = new Date(iso);
+            const y = c.length === 2 ? "20" + c : c;
+            const m = parseInt(b) > 12 && parseInt(a) <= 12 ? a : b;
+            const d = parseInt(b) > 12 && parseInt(a) <= 12 ? b : a;
+
+            const iso = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+            parsed = new Date(iso);
+          }
+        }
+
+        if (!isNaN(parsed.getTime())) {
+          candidates.push(parsed);
         }
       }
-
-      if (!isNaN(parsed.getTime())) {
-        candidates.push(parsed);
-      }
     }
+
+    if (candidates.length === 0) return null;
+
+    // pick the most recent date
+    const latest = new Date(Math.max(...candidates.map((d) => d.getTime())));
+    return latest.toISOString().split("T")[0]; // YYYY-MM-DD
   }
-
-  if (candidates.length === 0) return null;
-
-  // pick the most recent date
-  const latest = new Date(Math.max(...candidates.map((d) => d.getTime())));
-  return latest.toISOString().split("T")[0]; // YYYY-MM-DD
-}
-
-
 
   const normalized = cleanOcrText(rawText);
   const lower = normalized.toLowerCase();
@@ -271,24 +267,19 @@ function extractLatestDate(text: string): string | null {
   // --- 🔑 Record type detection ---
   const recordType = extractRecordType(rawText);
 
-  
   // --- 1) Customer Name ---
- 
-const nameMatch =
-  normalized.match(
-    /RECEIVED\s+FROM\s*[:\-]?\s*([A-Z0-9'`’\-\. ]+)/i
-  ) ||
-  normalized.match(
-    /CUSTOMERNAME\.?:\s*([A-Z0-9'`’\-\. ]+?)(?=\s+(?:APPLICATIONNO|INVOICENO|CUSTOMERNO|BILLTO|DATE|ITEM|DESCRIPTION|NARRATIVE|LANDPARCELNO|PAGE\d+|POWEREDBY)\b|$)/i
-  ) ||
-  normalized.match(
-    /(?:\bCLIENT|\bNAME)\s*[:\-]\s*([A-Z0-9'`’\-\. ]+?)(?=\s+(?:INVOICE|BILL|APPLICATION|RECEIPT|LANDPARCELNO|PAYER|DETAILS)\b|$)/i
-  );
 
-let customerName = nameMatch?.[1]?.trim() ?? null;
-if (customerName) customerName = deglueUppercaseName(customerName);
+  const nameMatch =
+    normalized.match(/RECEIVED\s+FROM\s*[:\-]?\s*([A-Z0-9'`’\-\. ]+)/i) ||
+    normalized.match(
+      /CUSTOMERNAME\.?:\s*([A-Z0-9'`’\-\. ]+?)(?=\s+(?:APPLICATIONNO|INVOICENO|CUSTOMERNO|BILLTO|DATE|ITEM|DESCRIPTION|NARRATIVE|LANDPARCELNO|PAGE\d+|POWEREDBY)\b|$)/i
+    ) ||
+    normalized.match(
+      /(?:\bCLIENT|\bNAME)\s*[:\-]\s*([A-Z0-9'`’\-\. ]+?)(?=\s+(?:INVOICE|BILL|APPLICATION|RECEIPT|LANDPARCELNO|PAYER|DETAILS)\b|$)/i
+    );
 
-
+  let customerName = nameMatch?.[1]?.trim() ?? null;
+  if (customerName) customerName = deglueUppercaseName(customerName);
 
   // --- 2) Invoice/Receipt/Bill Number ---
   const numberMatch =
@@ -297,51 +288,53 @@ if (customerName) customerName = deglueUppercaseName(customerName);
     ) ||
     normalized.match(/(?:BILL\s*(?:NO|NUMBER))\s*[.:#-]?\s*([A-Z0-9\-]+)/i) ||
     // allow patterns like "Payment Receipt BL-LR-1ED5BA0F"
-  normalized.match(/(?:PAYMENT\s+RECEIPT|RECEIPT)\s+([A-Z0-9\-]{6,})/i) ||
+    normalized.match(/(?:PAYMENT\s+RECEIPT|RECEIPT)\s+([A-Z0-9\-]{6,})/i) ||
     // FIX: allow line breaks & extra spaces after "Received From"
     normalized.match(/RECEIVED\s+FROM[\s\n]+([A-Z0-9\-]+)/i);
 
   let recordNumber = numberMatch?.[1]?.trim() ?? null;
-// --- Fallback: handle tricky "Received From" receipts and transaction Bill No cases ---
-if (!customerName || customerName.length < 4 || /\b(Date|TJL|TB|S0|TJQ)\b/i.test(customerName)) {
-  const receivedMatch = normalized.match(/RECEIVED\s+FROM\s+[A-Z0-9_\-]+\s+[0-9A-Za-z\-]+\s*\n?\s*([A-Z][A-Za-z'`\- ]{3,})/i);
-  if (receivedMatch) {
-    customerName = receivedMatch[1].trim();
-  } else {
-    // Try a simpler "Name:" field if it exists later
-    const nameField = normalized.match(/\bName\s*[:\-]\s*([A-Z][A-Za-z'`\- ]{2,})/i);
-    if (nameField) customerName = nameField[1].trim();
+  // --- Fallback: handle tricky "Received From" receipts and transaction Bill No cases ---
+  if (
+    !customerName ||
+    customerName.length < 4 ||
+    /\b(Date|TJL|TB|S0|TJQ)\b/i.test(customerName)
+  ) {
+    const receivedMatch = normalized.match(
+      /RECEIVED\s+FROM\s+[A-Z0-9_\-]+\s+[0-9A-Za-z\-]+\s*\n?\s*([A-Z][A-Za-z'`\- ]{3,})/i
+    );
+    if (receivedMatch) {
+      customerName = receivedMatch[1].trim();
+    } else {
+      // Try a simpler "Name:" field if it exists later
+      const nameField = normalized.match(
+        /\bName\s*[:\-]\s*([A-Z][A-Za-z'`\- ]{2,})/i
+      );
+      if (nameField) customerName = nameField[1].trim();
+    }
   }
-}
 
-if (!recordNumber || /^Date$/i.test(recordNumber)) {
-  const billMatch =
-    normalized.match(/\bBill\s*No[:\s]+(BL-[A-Z0-9\-]+)/i) ||
-    normalized.match(/\bBL-[A-Z]{2,}-[A-Z0-9]{4,}\b/i);
-  if (billMatch) {
-    recordNumber = (billMatch[1] || billMatch[0]).trim();
+  if (!recordNumber || /^Date$/i.test(recordNumber)) {
+    const billMatch =
+      normalized.match(/\bBill\s*No[:\s]+(BL-[A-Z0-9\-]+)/i) ||
+      normalized.match(/\bBL-[A-Z]{2,}-[A-Z0-9]{4,}\b/i);
+    if (billMatch) {
+      recordNumber = (billMatch[1] || billMatch[0]).trim();
+    }
   }
-}
 
-
-// --- 3) Total Amount ---
-const amountMatch =
-  normalized.match(
-    /(?:GRAND\s*TOTAL(?:\s*KES)?|TOTAL(?:\s*AMOUNT)?(?:\s*KES)?|AMOUNT\s*DUE|BALANCE|BILL\s*TOTAL\s*AMOUNT|AMOUNT\s*RECEIVED|SERVICE\s*AMOUNT)\s*[.:]?\s*\$?([\d,]+\.\d{2})\b/i
-  ) ||
-  normalized.match(/GRANDTOTALKES\s+([\d,]+\.\d{2})/i) ||
-  normalized.match(/([\d,]+\.\d{2})(?!.*[\d,]+\.\d{2})/);
-
-
+  // --- 3) Total Amount ---
+  const amountMatch =
+    normalized.match(
+      /(?:GRAND\s*TOTAL(?:\s*KES)?|TOTAL(?:\s*AMOUNT)?(?:\s*KES)?|AMOUNT\s*DUE|BALANCE|BILL\s*TOTAL\s*AMOUNT|AMOUNT\s*RECEIVED|SERVICE\s*AMOUNT)\s*[.:]?\s*\$?([\d,]+\.\d{2})\b/i
+    ) ||
+    normalized.match(/GRANDTOTALKES\s+([\d,]+\.\d{2})/i) ||
+    normalized.match(/([\d,]+\.\d{2})(?!.*[\d,]+\.\d{2})/);
 
   // --- 4) Date (unchanged) ---
-   
+
   // Use it:
-const extractedDate = extractLatestDate(normalized);
-const fixedDate = extractedDate ?? new Date().toISOString().split("T")[0];
-
-  
-
+  const extractedDate = extractLatestDate(normalized);
+  const fixedDate = extractedDate ?? new Date().toISOString().split("T")[0];
 
   // --- 5) Service/Subservice inference (unchanged) ---
   let foundSub: string | null = null;
@@ -355,24 +348,23 @@ const fixedDate = extractedDate ?? new Date().toISOString().split("T")[0];
     foundSvc = svc?.name ?? null;
   } else if (normalized.includes("UBP")) {
     const svc = services.find(
-      (s) =>
-        s.name.toLowerCase() === "unified business permits".toLowerCase()
+      (s) => s.name.toLowerCase() === "unified business permits".toLowerCase()
     );
     foundSvc = svc?.name ?? "Unified Business Permits";
     foundSub = svc?.subServices?.[0] ?? "Unified Business Permits";
   }
 
-// detect LR-based descriptions-UBP without service and sub service
-if (/LR\s*[-]?|LRNo/i.test(normalized)) {
-  foundSvc = "Land Rates";
-  foundSub = "LR";
-}
+  // detect LR-based descriptions-UBP without service and sub service
+  if (/LR\s*[-]?|LRNo/i.test(normalized)) {
+    foundSvc = "Land Rates";
+    foundSub = "LR";
+  }
 
-// --- Special case: Unified Business Permit (UBP) ---
-if (/\bUBP\b|UNIFIED\s+BUSINESS\s+PERMIT/i.test(normalized)) {
-  foundSvc = "Unified Business Permit";
-  foundSub = "UBP";
-}
+  // --- Special case: Unified Business Permit (UBP) ---
+  if (/\bUBP\b|UNIFIED\s+BUSINESS\s+PERMIT/i.test(normalized)) {
+    foundSvc = "Unified Business Permit";
+    foundSub = "UBP";
+  }
 
   if (!foundSub) {
     outer: for (const svc of services) {
