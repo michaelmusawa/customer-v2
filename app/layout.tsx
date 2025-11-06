@@ -3,6 +3,8 @@ import "./globals.css";
 import { poppins } from "@/public/fonts/fonts";
 import AutoLogoutClient from "@/components/ui/AutoLogout";
 import Footer from "@/components/ui/footer";
+import Link from "next/link";
+import { FiHelpCircle } from "react-icons/fi";
 
 export const metadata: Metadata = {
   title: "Customer service app",
@@ -69,7 +71,15 @@ export default function RootLayout({
         )}
         <main className="flex-grow">{children}</main>
 
-        {/* Modern Footer */}
+        {/* 🆘 Floating Help Button */}
+        <Link
+          href="/help"
+          className="fixed bottom-6 right-6 z-50 bg-green-600 hover:bg-green-700 text-white p-2 rounded-full shadow-lg transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-green-300 border-2 border-yellow-400"
+          title="Need Help?"
+        >
+          <FiHelpCircle className="w-5 h-5" />
+        </Link>
+
         <Footer />
       </body>
     </html>

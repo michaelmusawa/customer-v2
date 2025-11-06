@@ -106,7 +106,8 @@ export default function NavLinks({ role }: { role?: string }) {
                 {
                   "bg-gradient-to-r from-green-300 to-green-700 hover:from-green-600 hover:to-green-400 text-white shadow-lg":
                     isActive,
-                  "text-gray-50 hover:bg-gray-700 hover:text-white": !isActive,
+                  "text-gray-600 dark:text-gray-50 hover:bg-gray-700 hover:text-white":
+                    !isActive,
                 }
               )}
             >
