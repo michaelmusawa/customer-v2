@@ -32,7 +32,7 @@ jobs:
       - name: Deploy application via PM2
         run: |
           echo "Deploying customer-service-app..."
-          cd customer-service-app/customer-v2
+          cd ~/customer-service-app/customer-v2
           echo "Pulling latest release branch..."
           git fetch origin release && git reset --hard origin/release
           echo "Installing production dependencies..."
