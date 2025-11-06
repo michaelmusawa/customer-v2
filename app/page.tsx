@@ -20,7 +20,7 @@ export default function Page() {
               Nairobi City County.
             </strong>
             <br />
-            Application for Customer Service Management.
+            Application for Customer Service Record Entry and Management.
           </p>
 
           <Link
