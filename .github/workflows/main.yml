@@ -1,0 +1,45 @@
+name: "deploy-customer-service-app"
+
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  deploy:
+    runs-on: self-hosted  # your internal self-hosted runner
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Next.js app
+        run: pnpm build
+
+      - name: Deploy application via PM2
+        run: |
+          echo "Deploying customer-service-app..."
+          cd ~customer-service-app/customer-v2
+          echo "Pulling latest release branch..."
+          git fetch origin release && git reset --hard origin/release
+          echo "Installing production dependencies..."
+          pnpm install --frozen-lockfile
+          echo "Building production..."
+          pnpm build
+          echo "Restarting PM2 process..."
+          pm2 restart customer-service-app
+          pm2 save
+          echo "✅ Deployment completed successfully!"
