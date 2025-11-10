@@ -40,6 +40,6 @@ jobs:
           echo "Building production..."
           pnpm build
           echo "Restarting PM2 process..."
-          pm2 restart customer-service-app
+          pm2 restart customer-service
           pm2 save
           echo "✅ Deployment completed successfully!"
