@@ -1,5 +1,6 @@
 "use client";
 
+import AI from "@/components/ui/ai";
 import { useEffect, useState } from "react";
 import {
   FiChevronDown,
@@ -8,6 +9,7 @@ import {
   FiHelpCircle,
   FiAlertTriangle,
   FiUsers,
+  FiX,
 } from "react-icons/fi";
 
 interface PlatformInfo {
@@ -37,7 +39,9 @@ export default function HelpPage() {
   const [openManualSection, setOpenManualSection] = useState<string | null>(
     "overview"
   );
+  const [askAIModalOpen, setAskAIModalOpen] = useState(false);
   // Add this after your existing state declarations
+
   const [manualFiles] = useState({
     biller:
       "https://docs.google.com/document/d/1QsJ5TolirXO0eisQ0CQinDfKDSzKHNCJZoc9is9CWBc/edit?tab=t.0",
@@ -47,7 +51,7 @@ export default function HelpPage() {
       "https://docs.google.com/document/d/1QsJ5TolirXO0eisQ0CQinDfKDSzKHNCJZoc9is9CWBc/edit?tab=t.0",
     admin:
       "https://docs.google.com/document/d/1QsJ5TolirXO0eisQ0CQinDfKDSzKHNCJZoc9is9CWBc/edit?tab=t.0",
-    full: "https://docs.google.com/document/d/1QsJ5TolirXO0eisQ0CQinDfKDSzKHNCJZoc9is9CWBc/edit?tab=t.0",
+    full: "/public/docs/user-manual-full.pdf",
   });
 
   useEffect(() => {
@@ -133,6 +137,26 @@ export default function HelpPage() {
           <a href="#support" className="block hover:text-green-600 py-2">
             📞 Support Contacts
           </a>
+          <div className="h-full hidden sm:flex items-center">
+            <button
+              onClick={() => setAskAIModalOpen(true)}
+              className={`
+    relative inline-flex h-full items-center px-1 pt-1 text-sm font-medium
+    transition-colors duration-200
+    ${
+      askAIModalOpen
+        ? "text-gray-900 dark:text-white before:scale-x-100"
+        : "text-gray-500 dark:text-gray-300 hover:text-gray-700 hover:before:scale-x-100"
+    }
+    before:content-[''] before:absolute before:bottom-0 before:left-0
+    before:h-[2px] before:w-full before:bg-indigo-500
+    before:scale-x-0 before:origin-center
+    before:transition-transform before:duration-300
+  `}
+            >
+              Ask AI
+            </button>
+          </div>
         </nav>
       </aside>
 
@@ -791,6 +815,24 @@ export default function HelpPage() {
           </div>
         </section>
       </main>
+      {askAIModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-10">
+          <div
+            className="absolute inset-0 bg-black opacity-50"
+            // onClick={() => setAskAIModalOpen(false)}
+          ></div>
+          <div className="relative flex grow bg-white dark:bg-gray-800 rounded-lg p-8 max-w-2xl mx-auto z-50 mt-8">
+            <button
+              onClick={() => setAskAIModalOpen(false)}
+              className="absolute top-2 right-2 p-2 rounded-full focus:outline-none hover:bg-gray-200 dark:hover:bg-gray-700"
+              aria-label="Close modal"
+            >
+              <FiX className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+            </button>
+            <AI />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
