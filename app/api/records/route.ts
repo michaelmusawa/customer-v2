@@ -4,9 +4,9 @@ import { safeQuery } from "@/app/lib/db";
 import bcrypt from "bcryptjs";
 import { fetchFilteredRecords } from "@/app/lib/recordsActions";
 import {
+  aggregateExcelRows,
   ExcelRow,
   ExtractedFields,
-  extractExcelFields,
   extractFields,
   validate,
 } from "@/app/lib/utils";
@@ -71,34 +71,36 @@ export async function POST(req: NextRequest) {
           400
         );
       }
-      for (const row of payload.content) {
-        const excelRow: ExcelRow = {
-          "Customer Name":
-            typeof row["Customer Name"] === "string"
-              ? row["Customer Name"]
-              : undefined,
-          "Invoice No":
-            typeof row["Invoice No"] === "string"
-              ? row["Invoice No"]
-              : undefined,
-          "Total Amount":
-            typeof row["Total Amount"] === "number"
-              ? row["Total Amount"].toString()
-              : typeof row["Total Amount"] === "string"
-              ? row["Total Amount"]
-              : "",
 
-          "House/Stall No.":
-            typeof row["House/Stall No."] === "string"
-              ? row["House/Stall No."]
-              : undefined,
-        };
-        const fields = extractExcelFields(excelRow);
-        // optionally match subservice/service with DB here too
+      // Normalize Excel rows into the proper shape
+      const normalizedRows: ExcelRow[] = payload.content.map((row) => ({
+        "Customer Name":
+          typeof row["Customer Name"] === "string"
+            ? row["Customer Name"]
+            : undefined,
+        "Invoice No":
+          typeof row["Invoice No"] === "string" ? row["Invoice No"] : undefined,
+        "Total Amount":
+          typeof row["Total Amount"] === "number"
+            ? row["Total Amount"].toString()
+            : typeof row["Total Amount"] === "string"
+            ? row["Total Amount"]
+            : "",
+        "House/Stall No.":
+          typeof row["House/Stall No."] === "string"
+            ? row["House/Stall No."]
+            : undefined,
+      }));
 
-        validate(fields);
-        records.push(fields);
+      // Aggregate all rows into a single record
+      const aggregated = aggregateExcelRows(normalizedRows);
+
+      if (!aggregated) {
+        return withCors({ error: "No valid Excel data to process" }, 400);
       }
+
+      validate(aggregated);
+      records.push(aggregated);
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Extraction error";

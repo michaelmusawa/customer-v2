@@ -222,15 +222,19 @@ export function extractFields(
   // --- 1) Customer Name ---
 
   const nameMatch =
-    normalized.match(/RECEIVED\s+FROM\s*[:\-]?\s*([A-Z0-9'`’\-\. ]+)/i) ||
     normalized.match(
-      /CUSTOMERNAME\.?:\s*([A-Z0-9'`’\-\. ]+?)(?=\s+(?:APPLICATIONNO|INVOICENO|CUSTOMERNO|BILLTO|DATE|ITEM|DESCRIPTION|NARRATIVE|LANDPARCELNO|PAGE\d+|POWEREDBY)\b|$)/i
+      /RECEIVED\s+FROM\s*[:\-]?\s*([A-Za-z0-9'`’\-\.\(\)\s]+)/i
     ) ||
     normalized.match(
-      /(?:\bCLIENT|\bNAME)\s*[:\-]\s*([A-Z0-9'`’\-\. ]+?)(?=\s+(?:INVOICE|BILL|APPLICATION|RECEIPT|LANDPARCELNO|PAYER|DETAILS)\b|$)/i
+      /CUSTOMER\s*NAME\s*[:\-]?\s*([A-Za-z0-9'`’\-\.\(\)\s]+)/i
+    ) ||
+    normalized.match(
+      /(?:\bCLIENT|\bNAME)\s*[:\-]?\s*([\s\S]+?)(?=\s+(?:APPLICATION\s*NO|INVOICE|RECEIPT|CUSTOMER\s*NO|SERVICE\s*CATEGORY|BILL\s*TO|DATE|ITEM|DESCRIPTION|NARRATIVE|LAND\s*PARCEL|PAGE\d+|POWEREDBY)\b|$)/i
     );
 
-  let customerName = nameMatch?.[1]?.trim() ?? null;
+  let customerName = nameMatch?.[1]?.replace(/\s+/g, " ").trim() ?? null;
+  if (customerName) customerName = deglueUppercaseName(customerName);
+
   if (customerName) customerName = deglueUppercaseName(customerName);
 
   // --- 2) Invoice/Receipt/Bill Number ---
@@ -340,4 +344,22 @@ export function extractExcelFields(row: ExcelRow) {
       ? "County Houses"
       : "County Market Stalls",
   };
+}
+
+export function aggregateExcelRows(rows: ExcelRow[]): ExtractedFields | null {
+  let total = 0;
+  let base: ExtractedFields | null = null;
+
+  for (const r of rows) {
+    const f = extractExcelFields(r);
+    total += f.value || 0;
+    if (!base) base = { ...f };
+  }
+
+  if (base) {
+    base.value = total;
+    return base;
+  }
+
+  return null;
 }
