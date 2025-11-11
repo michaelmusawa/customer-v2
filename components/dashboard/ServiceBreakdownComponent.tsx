@@ -19,12 +19,13 @@ const ServiceBreakdownComponent = ({
   data: Breakdown[];
   colors: string[];
 }) => {
+  console.log("ServiceBreakdownComponent data:", data);
   return (
     <div className="h-72">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
-            data={data}
+            data={data.map((d) => ({ ...d, value: Number(d.value) }))}
             dataKey="value"
             nameKey="name"
             innerRadius={60}

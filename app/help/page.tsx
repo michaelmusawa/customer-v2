@@ -37,7 +37,9 @@ export default function HelpPage() {
   const [openManualSection, setOpenManualSection] = useState<string | null>(
     "overview"
   );
+
   // Add this after your existing state declarations
+
   const [manualFiles] = useState({
     biller:
       "https://docs.google.com/document/d/1QsJ5TolirXO0eisQ0CQinDfKDSzKHNCJZoc9is9CWBc/edit?tab=t.0",
@@ -47,7 +49,7 @@ export default function HelpPage() {
       "https://docs.google.com/document/d/1QsJ5TolirXO0eisQ0CQinDfKDSzKHNCJZoc9is9CWBc/edit?tab=t.0",
     admin:
       "https://docs.google.com/document/d/1QsJ5TolirXO0eisQ0CQinDfKDSzKHNCJZoc9is9CWBc/edit?tab=t.0",
-    full: "https://docs.google.com/document/d/1QsJ5TolirXO0eisQ0CQinDfKDSzKHNCJZoc9is9CWBc/edit?tab=t.0",
+    full: "/public/docs/user-manual-full.pdf",
   });
 
   useEffect(() => {
