@@ -224,6 +224,7 @@ export async function fetchShiftDistribution(
 
 export type TopPerformer = {
   userId: number;
+  rank: number;
   name: string;
   count: number;
   value: number;
@@ -300,11 +301,12 @@ export async function fetchTopBillers(
     value: string;
   }>(sql, params);
 
-  const leaderboard: TopPerformer[] = rows.map((r) => ({
+  const leaderboard: (TopPerformer & { rank: number })[] = rows.map((r, i) => ({
     userId: r.userId,
     name: r.name,
     count: r.count,
     value: Number(r.value),
+    rank: i + 1,
   }));
 
   if (!amBiller || !me) {
@@ -318,9 +320,9 @@ export async function fetchTopBillers(
   const end = Math.min(leaderboard.length, myIndex + 3);
   const window = leaderboard.slice(start, end);
 
-  if (start === 0 && window.length < 5) {
-    return leaderboard.slice(0, Math.min(5, leaderboard.length));
-  }
+  // if (start === 0 && window.length < 5) {
+  //   return leaderboard.slice(0, Math.min(5, leaderboard.length));
+  // }
 
   return window;
 }

@@ -22,8 +22,8 @@ export default async function TopBillers({
     <div>
       <SimpleTable
         headers={["#", "Biller", "Count", "Value"]}
-        rows={rows.map((b, idx) => [
-          idx + 1,
+        rows={rows.map((b) => [
+          b.rank,
           b.name,
           b.count,
           `KES ${b.value.toLocaleString()}`,
