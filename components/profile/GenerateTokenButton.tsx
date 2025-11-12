@@ -35,20 +35,31 @@ export default function GenerateTokenButton({ email }: Props) {
     }
   };
 
-  const handleCopy = () => {
-    if (token) {
-      navigator.clipboard.writeText(token);
-      setCopied(true);
+  const handleCopy = async () => {
+    if (!token) return;
 
-      // Clear any existing timeout
-      if (copyTimeoutRef.current) {
-        clearTimeout(copyTimeoutRef.current);
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(token);
+      } else {
+        // fallback for HTTP / insecure environments
+        const textArea = document.createElement("textarea");
+        textArea.value = token;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        textArea.remove();
       }
 
-      // Set timeout to revert after 2 seconds
-      copyTimeoutRef.current = setTimeout(() => {
-        setCopied(false);
-      }, 2000);
+      setCopied(true);
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Clipboard copy failed:", err);
+      alert("Failed to copy token. Please copy manually.");
     }
   };
 

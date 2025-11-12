@@ -236,8 +236,6 @@ export async function fetchTopBillers(
   station?: string,
   recordType?: "invoice" | "receipt"
 ): Promise<TopPerformer[]> {
-  console.log("Fetching top billers...", recordType);
-
   const session = await auth();
   const email = session?.user?.email;
   const me = email ? await getUser(email) : null;
@@ -319,10 +317,6 @@ export async function fetchTopBillers(
   const start = Math.max(0, myIndex - 2);
   const end = Math.min(leaderboard.length, myIndex + 3);
   const window = leaderboard.slice(start, end);
-
-  // if (start === 0 && window.length < 5) {
-  //   return leaderboard.slice(0, Math.min(5, leaderboard.length));
-  // }
 
   return window;
 }

@@ -19,7 +19,6 @@ const ServiceBreakdownComponent = ({
   data: Breakdown[];
   colors: string[];
 }) => {
-  console.log("ServiceBreakdownComponent data:", data);
   return (
     <div className="h-72">
       <ResponsiveContainer width="100%" height="100%">
