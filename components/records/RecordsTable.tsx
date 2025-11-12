@@ -106,7 +106,7 @@ const RecordsTable = async ({
                     {r.ticket === "T-DAEMON" && <EditTicketModal record={r} />}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-6 py-4 max-w-[220px]">
                   <div className="text-sm font-medium text-gray-900 dark:text-white">
                     {r.name}
                   </div>
@@ -114,6 +114,7 @@ const RecordsTable = async ({
                     {r.recordType}
                   </div>
                 </td>
+
                 <td className="px-6 py-4">
                   <div className="text-sm text-gray-900 dark:text-white font-medium">
                     {r.service}
