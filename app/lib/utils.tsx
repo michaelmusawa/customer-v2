@@ -94,24 +94,27 @@ export function isDBError(err: unknown): err is DBError {
   );
 }
 
+interface ValidationError extends Error {
+  code: string;
+  missing: string[];
+}
+
 export function validate(fields: ExtractedFields) {
-  if (
-    !fields.name ||
-    !fields.value ||
-    !fields.recordNumber ||
-    !fields.service ||
-    !fields.subservice ||
-    !fields.recordType
-  ) {
-    throw new Error(
-      "Missing required fields: " +
-        (!fields.name ? "Customer Name, " : "") +
-        (!fields.value ? "Total Amount" : "") +
-        (!fields.recordNumber ? "Record Number, " : "") +
-        (!fields.service ? "Service, " : "") +
-        (!fields.subservice ? "Sub Service, " : "") +
-        (!fields.recordType ? "Record Type, " : "")
-    );
+  const missing: string[] = [];
+
+  if (!fields.name) missing.push("Customer Name");
+  if (!fields.value) missing.push("Total Amount");
+  if (!fields.recordNumber) missing.push("Record Number");
+  if (!fields.service) missing.push("Service");
+  if (!fields.subservice) missing.push("Sub Service");
+  if (!fields.recordType) missing.push("Record Type");
+
+  if (missing.length > 0) {
+    const message = `Missing required fields: ${missing.join(", ")}`;
+    const err: ValidationError = new Error(message) as ValidationError;
+    err.code = "VALIDATION_ERROR";
+    err.missing = missing;
+    throw err;
   }
 }
 
@@ -138,181 +141,194 @@ export function extractFields(
   rawText: string,
   services: Service[]
 ): ExtractedFields {
-  // --- Helper: clean OCR noise/boilerplate ---
-  function cleanOcrText(raw: string): string {
-    return (
-      raw
-        .replace(/\s+/g, " ") // normalize whitespace
-        // trim common boilerplate blocks that pollute matches
-        .replace(/Please include invoice number.*?(?=PAGE\d+|$)/gi, "")
-        .replace(/POWEREDBY.*?(?=PAGE\d+|$)/gi, "")
-        .replace(/Scan this QR Code.*?(?=PAGE\d+|$)/gi, "")
-        .trim()
-    );
-  }
-  function extractRecordType(text: string): "invoice" | "receipt" | null {
-    const normalized = text.toLowerCase();
-
-    if (/\binvoice\s*no\b|\binvoice\b/.test(normalized)) {
-      return "invoice";
-    }
-
-    if (/\breceipt\s*no\b|\breceipt\b/.test(normalized)) {
-      return "receipt";
-    }
-
-    if (/\bbill\s*no\b|\bbill\b/.test(normalized)) {
-      // normalize "bill" to "invoice"
-      return "invoice";
-    }
-
-    return null;
-  }
-
-  // --- Helper: insert spaces into glued ALL-CAPS org names ---
-  function deglueUppercaseName(n: string): string {
-    if (!n) return n;
-    let name = n.toUpperCase().replace(/\s+/g, " ").trim();
-
-    // Remove trailing stray labels if any slipped in
-    name = name
-      .replace(/\b(APPLICATIONNO|INVOICENO|CUSTOMERNO)\b.*$/i, "")
+  /** ----------------------- 🧹 CLEANERS ----------------------- **/
+  const cleanText = (text: string) =>
+    text
+      .replace(/[\r\n\f\v]+/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(/Please include invoice number.*?(?=PAGE\d+|$)/gi, "")
+      .replace(/POWEREDBY.*?(?=PAGE\d+|$)/gi, "")
+      .replace(/Scan this QR Code.*?(?=PAGE\d+|$)/gi, "")
       .trim();
 
-    // Insert spaces before common tokens if glued
-    const tokens = [
-      "KENYA",
-      "UGANDA",
-      "TANZANIA",
-      "LIMITED",
-      "LTD",
-      "PLC",
-      "INC",
-      "LLC",
-      "CO",
-      "COMPANY",
-      "HOLDINGS",
-      "BANK",
-      "INSURANCE",
-      "UNIVERSITY",
-      "COUNTY",
-      "CITY",
-    ];
-    for (const t of tokens) {
-      const re = new RegExp(`([A-Z])(${t})\\b`, "g"); // ...XKENYA -> X KENYA
-      name = name.replace(re, "$1 $2");
-    }
-
-    // Clean leftover digits/punctuation inside the name
-    name = name
-      .replace(/[0-9.]+/g, " ")
-      .replace(/\s{2,}/g, " ")
-      .trim();
-    return name;
-  }
-
-  // --- Helper: pick the best (closest-to-today) OCR date candidate; ISO out ---
-
-  const normalized = cleanOcrText(rawText);
+  const normalized = cleanText(rawText);
   const lower = normalized.toLowerCase();
 
-  // --- 🔑 Record type detection ---
-  const recordType = extractRecordType(rawText);
+  /** ----------------------- 🧭 RECORD TYPE ----------------------- **/
+  const detectRecordType = (txt: string): "invoice" | "receipt" | null => {
+    if (/\b(receiptno|receipt)\b/i.test(txt)) return "receipt";
+    if (/\b(invoiceno|invoice|billto|bill)\b/i.test(txt)) return "invoice";
+    return null;
+  };
+  const recordType = detectRecordType(normalized);
 
-  // --- 1) Customer Name ---
+  /** ----------------------- 👤 CUSTOMER NAME ----------------------- **/
+  const deglueName = (n?: string | null): string | null => {
+    if (!n) return null;
+
+    let name = n
+      .replace(/\s{2,}/g, " ")
+      .replace(
+        /\b(PLOT|LAND|APPLICATION|INVOICE|RECEIPT|BILL|DATE|WARD|DESCRIPTION|ITEM|AMOUNT|NO)\b.*$/i,
+        ""
+      )
+      .trim()
+      .toUpperCase();
+
+    // Fix letter-by-letter spacing (e.g., “N ANCY W AMBUI N GUGI” → “NANCY WAMBUI NGUGI”)
+    name = name.replace(/\b([A-Z])\s+([A-Z])\b/g, "$1$2");
+
+    // Fix broken multi-letter sequences (e.g., “M UTUAL” → “MUTUAL”)
+    name = name.replace(/\b([A-Z])\s+([A-Z]{2,})\b/g, "$1$2");
+
+    return name.trim();
+  };
 
   const nameMatch =
     normalized.match(
-      /RECEIVED\s+FROM\s*[:\-]?\s*([A-Za-z0-9'`’\-\.\(\)\s]+)/i
+      /\b(?:FOR|CUSTOMER\s*NAME|CUSTOMERNAME|NAME|PAYER\s*NAME|RECEIVED\s*FROM)\s*[.:]?\s*([A-Z][A-Z\s'&\-\.\d]{2,80}?)(?=\s*(?:PLOT|LAND|APPLICATION|INVOICE|RECEIPT|BILL|DATE|ID|WARD|DESCRIPTION|ITEM|AMOUNT|NO|$))/i
     ) ||
     normalized.match(
-      /CUSTOMER\s*NAME\s*[:\-]?\s*([A-Za-z0-9'`’\-\.\(\)\s]+)/i
+      /(?:CUSTOMERNAME\.?|PAYER\s*NAME|NAME|FOR)\s*[:\-]?\s*([A-Za-z0-9'`’\-\.\(\)\s]{3,80})(?=\s*(?:APPLICATION|INVOICE|RECEIPT|BILL|DATE|ID|LAND|WARD|DESCRIPTION|ITEM|AMOUNT|NO|$))/i
     ) ||
     normalized.match(
-      /(?:\bCLIENT|\bNAME)\s*[:\-]?\s*([\s\S]+?)(?=\s+(?:APPLICATION\s*NO|INVOICE|RECEIPT|CUSTOMER\s*NO|SERVICE\s*CATEGORY|BILL\s*TO|DATE|ITEM|DESCRIPTION|NARRATIVE|LAND\s*PARCEL|PAGE\d+|POWEREDBY)\b|$)/i
+      /(?:APPLICATION\s*BY|CLIENT)\s*[:\-]?\s*([A-Za-z0-9'`’\-\.\(\)\s]{3,80})(?=\s*(?:INVOICE|RECEIPT|BILL|DATE|$))/i
     );
 
-  let customerName = nameMatch?.[1]?.replace(/\s+/g, " ").trim() ?? null;
-  if (customerName) customerName = deglueUppercaseName(customerName);
+  const customerName = deglueName(
+    nameMatch?.[1]?.replace(/\s{2,}/g, " ").trim() ?? null
+  );
 
-  if (customerName) customerName = deglueUppercaseName(customerName);
+  /** ----------------------- 🔢 RECORD NUMBER ----------------------- **/
+  const normalizedFixed = normalized
+    .replace(/[\r\n\f\v]+/g, " ")
+    .replace(/\u00A0/g, " ")
+    .replace(/-\s+/g, "-");
 
-  // --- 2) Invoice/Receipt/Bill Number ---
-  const numberMatch =
-    normalized.match(
-      /(?:INVOICENO|INVOICE\s*NO\.?|INVOICE\s*NUMBER|RECEIPT\s*NO\.?|RECEIPT\s*NUMBER)\s*[.:#-]?\s*([A-Z0-9\-]+)/i
+  const recordNumberMatch =
+    normalizedFixed.match(
+      /\b(?:INVOICE|BILL|RECEIPT)\s*(?:NO|NUMBER|#)?[^A-Z0-9]{0,3}([A-Z]{1,4}[-_][A-Z]{1,4}[-_]?\s*\d{2,12})/i
     ) ||
-    normalized.match(/(?:BILL\s*(?:NO|NUMBER))\s*[.:#-]?\s*([A-Z0-9\-]+)/i) ||
-    // allow patterns like "Payment Receipt BL-LR-1ED5BA0F"
-    normalized.match(/(?:PAYMENT\s+RECEIPT|RECEIPT)\s+([A-Z0-9\-]{6,})/i) ||
-    // FIX: allow line breaks & extra spaces after "Received From"
-    normalized.match(/RECEIVED\s+FROM[\s\n]+([A-Z0-9\-]+)/i);
+    normalizedFixed.match(/\b(BL[-_]?[A-Z]{2,4}[-_]?\s*\d{3,12})\b/i) ||
+    normalizedFixed.match(/\b([A-Z]{2,4}[-_]\s*\d{3,12})\b/i) ||
+    normalizedFixed.match(
+      /\b(?:RECEIPT\s*(?:NO|NUMBER|#)?[^A-Z0-9]{0,3})(\d{6,20})\b/i
+    );
 
-  const recordNumber = numberMatch?.[1]?.trim() ?? null;
+  const recordNumber =
+    recordNumberMatch?.[1]?.replace(/\s+/g, "").trim() ?? null;
 
-  // --- 3) Total Amount ---
+  /** ----------------------- 💰 AMOUNT ----------------------- **/
   const amountMatch =
     normalized.match(
-      /(?:GRAND\s*TOTAL(?:\s*KES)?|TOTAL(?:\s*AMOUNT)?(?:\s*KES)?|AMOUNT\s*DUE|BALANCE|BILL\s*TOTAL\s*AMOUNT|AMOUNT\s*RECEIVED|SERVICE\s*AMOUNT)\s*[.:]?\s*\$?([\d,]+\.\d{2})\b/i
+      /(?:TOTAL\s*(?:AMOUNT|KES)?|GRAND\s*TOTAL|AMOUNT\s*(?:DUE|RECEIVED)|BILL\s*TOTAL\s*AMOUNT)\s*[:#]?\s*\$?\s*([\d,]+(?:\.\d{1,2})?)/i
     ) ||
-    normalized.match(/GRANDTOTALKES\s+([\d,]+\.\d{2})/i) ||
+    normalized.match(/KES\s*([\d,]+\.\d{1,2})/i) ||
     normalized.match(/([\d,]+\.\d{2})(?!.*[\d,]+\.\d{2})/);
 
-  // --- 4) Date (unchanged) ---
+  const value = amountMatch?.[1]?.replace(/[,]+/g, "").trim() ?? null;
 
-  const fixedDate = new Date().toString();
+  /** ----------------------- 🗓️ DATE DETECTION ----------------------- **/
 
-  // --- 5) Service/Subservice inference (unchanged) ---
-  let foundSub: string | null = null;
-  let foundSvc: string | null = null;
+  // Step 0: Pre-clean merged month+day+year (e.g., "MARCH682025" → "MARCH 6 2025")
+  const cleanedText = normalized.replace(
+    /\b(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|JAN|FEB|MAR|APR|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{1,2})(\d{2,4})\b/gi,
+    (_, month, day, year) => `${month} ${day} ${year}`
+  );
 
-  if (lower.includes("land rate for") || lower.includes("landratefor")) {
-    foundSub = "Annual Land rates";
-    const svc = services.find((s) =>
-      s.subServices.some((ss) => ss.toLowerCase() === foundSub!.toLowerCase())
-    );
-    foundSvc = svc?.name ?? null;
-  } else if (normalized.includes("UBP")) {
-    const svc = services.find(
-      (s) => s.name.toLowerCase() === "unified business permits".toLowerCase()
-    );
-    foundSvc = svc?.name ?? "Unified Business Permits";
-    foundSub = svc?.subServices?.[0] ?? "Unified Business Permits";
-  }
+  // Step 1: Use cleanedText instead of normalized in your regex
+  const dateCandidates = [
+    ...cleanedText.matchAll(
+      /\b(?:DATE|APPLICATION\s*DATE|INVOICE\s*DATE|DATE&TIME|BILLTO\s*DATE)\s*[:\-]?\s*([A-Z]{3,9}\s*\d{1,2},?\s*\d{2,4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/gi
+    ),
+    ...cleanedText.matchAll(
+      /\b(\d{1,2}[\/\-][A-Z]{3,9}[\/\-]?\d{2,4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|[A-Z]{3,9}\s*\d{1,2},?\s*\d{2,4})\b/gi
+    ),
+  ].map((m) => m[1]);
 
-  // detect LR-based descriptions-UBP without service and sub service
-  if (/LR\s*[-]?|LRNo/i.test(normalized)) {
-    foundSvc = "Land Rates";
-    foundSub = "LR";
-  }
+  let parsedDate: Date | null = null;
 
-  // --- Special case: Unified Business Permit (UBP) ---
-  if (/\bUBP\b|UNIFIED\s+BUSINESS\s+PERMIT/i.test(normalized)) {
-    foundSvc = "Unified Business Permit";
-    foundSub = "UBP";
-  }
-
-  if (!foundSub) {
-    outer: for (const svc of services) {
-      for (const sub of svc.subServices) {
-        if (lower.includes(sub.toLowerCase())) {
-          foundSub = sub;
-          foundSvc = svc.name;
-          break outer;
-        }
-      }
+  for (const d of dateCandidates) {
+    const clean = d.replace(/\s+/g, " ").trim();
+    const date = new Date(clean);
+    if (!isNaN(date.getTime())) {
+      parsedDate = date;
+      break;
     }
   }
 
+  const now = new Date();
+  const maxDiff = 7 * 24 * 60 * 60 * 1000;
+  const isDatePlausible =
+    parsedDate && Math.abs(now.getTime() - parsedDate.getTime()) <= maxDiff;
+  const finalDate = isDatePlausible ? parsedDate : now;
+
+  /** ----------------------- 🧾 SERVICE & SUBSERVICE ----------------------- **/
+  let foundService: string | null = null;
+  let foundSubService: string | null = null;
+
+  const detectByHeuristics = () => {
+    if (/\bWAYLEAVES?\b/i.test(normalized)) {
+      foundService = "Wayleave Services";
+      foundSubService = "Annual Wayleave";
+      return;
+    }
+
+    if (/\bLR\b|LAND\s*RATE/i.test(normalized)) {
+      foundService = "Land Rates";
+      foundSubService = "Annual Land Rates";
+      return;
+    }
+    if (/\bUBP\b|UNIFIED\s+BUSINESS\s+PERMIT/i.test(normalized)) {
+      foundService = "Unified Business Permit";
+      foundSubService = "UBP";
+      return;
+    }
+    if (/\bFOOD\s*HANDLING\b|PUBLIC\s*HEALTH/i.test(normalized)) {
+      foundService = "Public Health Services";
+      foundSubService = "FoodHandling";
+      return;
+    }
+
+    // ✅ Add GHR detection
+    if (/\bGHR\b|HOUSE\s*RENT/i.test(normalized)) {
+      foundService = "Global";
+      foundSubService = "House Rent";
+      return;
+    }
+    if (/\bADF\b|ADVERTISEMENT/i.test(normalized)) {
+      foundService = "Advertisement Management";
+      foundSubService = "Outdoor Event";
+      return;
+    }
+  };
+
+  outer: for (const svc of services) {
+    for (const sub of svc.subServices) {
+      if (lower.includes(sub.toLowerCase())) {
+        foundService = svc.name;
+        foundSubService = sub;
+        break outer;
+      }
+    }
+    if (lower.includes(svc.name.toLowerCase())) {
+      foundService = svc.name;
+      foundSubService = svc.subServices[0] ?? svc.name;
+    }
+  }
+
+  if (!foundService || !foundSubService) detectByHeuristics();
+
+  /** ----------------------- 🧩 BUILD RESULT ----------------------- **/
   const result: ExtractedFields = {
     ticket: "T-DAEMON",
     recordType,
     name: customerName ?? null,
-    recordNumber: recordNumber ?? null,
-    service: foundSvc ?? null,
-    subservice: foundSub ?? null,
-    value: amountMatch?.[1]?.trim() ?? null,
-    date: fixedDate ?? null,
+    recordNumber,
+    service: foundService,
+    subservice: foundSubService,
+    value,
+    date: finalDate?.toISOString(),
   };
 
   console.log("Extracted fields:", result);
@@ -358,6 +374,8 @@ export function aggregateExcelRows(rows: ExcelRow[]): ExtractedFields | null {
 
   if (base) {
     base.value = total;
+
+    console.log("Aggregated Excel fields:", base);
     return base;
   }
 

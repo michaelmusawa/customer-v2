@@ -31,12 +31,20 @@ export async function OPTIONS() {
   return withCors(null, 204);
 }
 
+function errorResponse(message: string, code: string, status = 400) {
+  return withCors({ ok: false, error: message, code }, status);
+}
+
 export async function POST(req: NextRequest) {
   // 0. Extract & verify Authorization header
   const authHeader = req.headers.get("authorization") || "";
   const match = authHeader.match(/^Bearer\s+(.+)$/i);
   if (!match) {
-    return withCors({ error: "Missing or invalid Authorization header" }, 401);
+    return errorResponse(
+      "Missing or invalid Authorization header. Please check your API key.",
+      "AUTH_HEADER_INVALID",
+      401
+    );
   }
   const raw = match[1];
   const [userEmail, incomingToken] = raw.split("::");
@@ -46,11 +54,15 @@ export async function POST(req: NextRequest) {
   try {
     payload = await req.json();
   } catch {
-    return withCors({ error: "Invalid JSON" }, 400);
+    return errorResponse("Data must be valid JSON", "INVALID_JSON", 401);
   }
 
   if (!("type" in payload) || !("content" in payload)) {
-    return withCors({ error: "Invalid payload format" }, 400);
+    return errorResponse(
+      "Missing or invalid payload format",
+      "INVALID_PAYLOAD",
+      400
+    );
   }
 
   // 2. Extract structured fields from raw content
@@ -66,8 +78,9 @@ export async function POST(req: NextRequest) {
     } else if (payload.type === "excel") {
       if (!Array.isArray(payload.content)) {
         console.log("Excel content is not an array:", payload.content);
-        return withCors(
-          { error: "Excel content must be an array of rows" },
+        return errorResponse(
+          "Excel content must be an array of rows",
+          "INVALID_PAYLOAD",
           400
         );
       }
@@ -96,15 +109,28 @@ export async function POST(req: NextRequest) {
       const aggregated = aggregateExcelRows(normalizedRows);
 
       if (!aggregated) {
-        return withCors({ error: "No valid Excel data to process" }, 400);
+        return errorResponse(
+          "The uploaded Excel file contains no valid data to process.",
+          "EMPTY_EXCEL",
+          400
+        );
       }
 
       validate(aggregated);
       records.push(aggregated);
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Extraction error";
-    return withCors({ error: message }, 400);
+    const message =
+      err instanceof Error
+        ? err.message
+        : typeof err === "string"
+        ? err
+        : "Unknown extraction error";
+    return errorResponse(
+      `Error extracting fields: ${message}`,
+      "EXTRACTION_ERROR",
+      400
+    );
   }
 
   try {
@@ -114,15 +140,29 @@ export async function POST(req: NextRequest) {
       [userEmail]
     );
     if (userRes.rows.length === 0) {
-      return withCors({ error: "Unknown userEmail" }, 404);
+      return errorResponse(
+        `The provided email address: ${userEmail} is not registered.`,
+        "USER_NOT_FOUND",
+        404
+      );
     }
     const { id: userId, token: storedHash } = userRes.rows[0];
     if (!storedHash) {
-      return withCors({ error: "No token set for this user" }, 401);
+      if (!storedHash) {
+        return errorResponse(
+          `No token found for this user: ${userEmail}. Please re-generate your API key.`,
+          "NO_TOKEN",
+          401
+        );
+      }
     }
     const valid = await bcrypt.compare(incomingToken, storedHash);
     if (!valid) {
-      return withCors({ error: "Invalid token" }, 401);
+      return errorResponse(
+        "Invalid API key. Please check your credentials.",
+        "INVALID_TOKEN",
+        401
+      );
     }
 
     // 4. Insert records with duplicate check
@@ -176,8 +216,12 @@ export async function POST(req: NextRequest) {
 
     return withCors({ ok: true, ids: insertedIds }, 200);
   } catch (err) {
-    console.error("Error inserting record:", err);
-    return withCors({ error: "Database error" }, 500);
+    console.error("DB insertion error:", err);
+    return errorResponse(
+      "Database error while inserting record. Please try again later.",
+      "DB_ERROR",
+      500
+    );
   }
 }
 
