@@ -207,10 +207,11 @@ export function extractFields(
 
   const recordNumberMatch =
     normalizedFixed.match(
-      /\b(?:INVOICE|BILL|RECEIPT)\s*(?:NO|NUMBER|#)?[^A-Z0-9]{0,3}([A-Z]{1,4}[-_][A-Z]{1,4}[-_]?\s*\d{2,12})/i
+      /\b(?:INVOICE|BILL|RECEIPT)\s*(?:NO|NUMBER|#)?[^A-Z0-9]{0,3}([A-Z]{1,4}[-_][A-Z]{1,4}[-_]?[A-Z0-9]{2,12})/i
     ) ||
-    normalizedFixed.match(/\b(BL[-_]?[A-Z]{2,4}[-_]?\s*\d{3,12})\b/i) ||
-    normalizedFixed.match(/\b([A-Z]{2,4}[-_]\s*\d{3,12})\b/i) ||
+    normalizedFixed.match(/\b(BL[-_]?[A-Z]{2,4}[-_]?[A-Z0-9]{2,12})\b/i) ||
+    normalizedFixed.match(/\b([A-Z]{2,4}[-_][A-Z0-9]{3,12})\b/i) ||
+    normalizedFixed.match(/\bBL[-_]LR[-_][A-Z0-9]{3,15}\b/i) ||
     normalizedFixed.match(
       /\b(?:RECEIPT\s*(?:NO|NUMBER|#)?[^A-Z0-9]{0,3})(\d{6,20})\b/i
     );
