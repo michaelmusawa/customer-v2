@@ -307,6 +307,11 @@ export function extractFields(
       foundSubService = "Food Handlers Certificate";
       return;
     }
+    if (/\bGIN\b/i.test(normalized)) {
+      foundService = "Public Health Services";
+      foundSubService = "Institutional Inspection Fees & Parklands";
+      return;
+    }
   };
 
   outer: for (const svc of services) {
