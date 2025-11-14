@@ -302,6 +302,11 @@ export function extractFields(
       foundSubService = "Outdoor Event";
       return;
     }
+    if (/\bFH\b|FOOD\s*HANDLERS?\s*CERTIFICATE/i.test(normalized)) {
+      foundService = "Health Certificates";
+      foundSubService = "Food Handlers Certificate";
+      return;
+    }
   };
 
   outer: for (const svc of services) {
