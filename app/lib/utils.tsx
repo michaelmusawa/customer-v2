@@ -262,7 +262,9 @@ export function extractFields(
   const maxDiff = 7 * 24 * 60 * 60 * 1000;
   const isDatePlausible =
     parsedDate && Math.abs(now.getTime() - parsedDate.getTime()) <= maxDiff;
-  const finalDate = isDatePlausible ? parsedDate : now;
+  const finalDate = isDatePlausible
+    ? parsedDate?.toISOString()
+    : now.toLocaleString("en-KE", { timeZone: "Africa/Nairobi" });
 
   /** ----------------------- 🧾 SERVICE & SUBSERVICE ----------------------- **/
   let foundService: string | null = null;
@@ -339,7 +341,7 @@ export function extractFields(
     service: foundService,
     subservice: foundSubService,
     value,
-    date: finalDate?.toISOString(),
+    date: finalDate,
   };
 
   console.log("Extracted fields:", result);
