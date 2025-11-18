@@ -9,7 +9,7 @@ const cosineSimilarity = (a: number[], b: number[]) =>
   dot(a, b) / (norm(a) * norm(b));
 
 async function getEmbedding(text: string): Promise<number[]> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/embed`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/ocr/embed`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
