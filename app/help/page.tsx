@@ -1,5 +1,6 @@
 "use client";
 
+import Chat from "@/components/ui/ai";
 import { useEffect, useState } from "react";
 import {
   FiChevronDown,
@@ -8,6 +9,7 @@ import {
   FiHelpCircle,
   FiAlertTriangle,
   FiUsers,
+  FiMessageSquare,
 } from "react-icons/fi";
 
 interface PlatformInfo {
@@ -37,8 +39,7 @@ export default function HelpPage() {
   const [openManualSection, setOpenManualSection] = useState<string | null>(
     "overview"
   );
-
-  // Add this after your existing state declarations
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const [manualFiles] = useState({
     biller:
@@ -107,6 +108,11 @@ export default function HelpPage() {
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Floating AI Assistant Button */}
+
+      {/* AI Chat Modal */}
+      <Chat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+
       {/* Sidebar Navigation */}
       <aside className="w-full lg:w-1/4 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-6 sticky top-0 h-screen overflow-y-auto">
         <h2 className="text-xl font-semibold mb-6">Help Center</h2>
@@ -135,7 +141,17 @@ export default function HelpPage() {
           <a href="#support" className="block hover:text-green-600 py-2">
             📞 Support Contacts
           </a>
+          <button
+            onClick={() => setIsChatOpen(true)}
+            className="flex hover:text-green-600 py-2 gap-2"
+          >
+            <FiMessageSquare className="w-6 h-6" />
+            <span> Ask AI</span>
+          </button>
         </nav>
+
+        {/* Quick AI Assistant Button in Sidebar */}
+        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700" />
       </aside>
 
       {/* Main Content */}
@@ -172,6 +188,8 @@ export default function HelpPage() {
             >
               💾 Download {filename}
             </a>
+
+            {/* Quick AI Assistant Call-to-Action */}
           </div>
         </section>
 
@@ -790,6 +808,8 @@ export default function HelpPage() {
                 </p>
               </div>
             </div>
+
+            {/* AI Assistant Call-to-Action in Support Section */}
           </div>
         </section>
       </main>

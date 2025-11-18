@@ -258,11 +258,46 @@ export function extractFields(
     }
   }
 
-  const now = new Date();
+  const nowUTC = new Date();
   const maxDiff = 7 * 24 * 60 * 60 * 1000;
   const isDatePlausible =
-    parsedDate && Math.abs(now.getTime() - parsedDate.getTime()) <= maxDiff;
-  const finalDate = isDatePlausible ? parsedDate : now;
+    parsedDate && Math.abs(nowUTC.getTime() - parsedDate.getTime()) <= maxDiff;
+
+  /* ---------------------------------------------------------
+   ONE FORMATTER (does not shift time)
+--------------------------------------------------------- */
+  function formatAsEAT(date: Date): string {
+    const pad = (n: number) => n.toString().padStart(2, "0");
+
+    return (
+      date.getFullYear() +
+      "-" +
+      pad(date.getMonth() + 1) +
+      "-" +
+      pad(date.getDate()) +
+      "T" +
+      pad(date.getHours()) +
+      ":" +
+      pad(date.getMinutes()) +
+      ":" +
+      pad(date.getSeconds()) +
+      ".000+03:00"
+    );
+  }
+
+  /* ---------------------------------------------------------
+   SHIFT UTC → EAT for fallback only
+--------------------------------------------------------- */
+  function utcNowToEAT(): Date {
+    const d = new Date();
+    // UTC → EAT shift (+3 hours)
+    d.setHours(d.getHours() + 3);
+    return d;
+  }
+
+  const finalDate = isDatePlausible
+    ? formatAsEAT(parsedDate!) // already EAT → do NOT shift
+    : formatAsEAT(utcNowToEAT()); // UTC server time → shift +3 hours → EAT
 
   /** ----------------------- 🧾 SERVICE & SUBSERVICE ----------------------- **/
   let foundService: string | null = null;
@@ -339,7 +374,7 @@ export function extractFields(
     service: foundService,
     subservice: foundSubService,
     value,
-    date: finalDate?.toISOString(),
+    date: finalDate,
   };
 
   console.log("Extracted fields:", result);
