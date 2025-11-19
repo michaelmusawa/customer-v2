@@ -238,7 +238,6 @@ export function extractFields(
   );
 
   // Step 1: Use cleanedText instead of normalized in your regex
-
   const dateCandidates = [
     // Capture date + time first (priority)
     ...cleanedText.matchAll(
@@ -299,14 +298,35 @@ export function extractFields(
 --------------------------------------------------------- */
   function utcNowToEAT(): Date {
     const d = new Date();
-    // UTC → EAT shift (+3 hours)
-    d.setHours(d.getHours() + 3);
+    d.setHours(d.getHours() + 3); // shift to EAT
     return d;
   }
 
-  const finalDate = isDatePlausible
-    ? formatAsEAT(parsedDate!) // already EAT → do NOT shift
-    : formatAsEAT(utcNowToEAT()); // UTC server time → shift +3 hours → EAT
+  /* ---------------------------------------------------------
+   🔥 NEW LOGIC: If extracted date has NO TIME, attach current time (EAT)
+--------------------------------------------------------- */
+  function ensureDateHasTime(date: Date): Date {
+    if (
+      date.getHours() === 0 &&
+      date.getMinutes() === 0 &&
+      date.getSeconds() === 0
+    ) {
+      const now = utcNowToEAT();
+      date.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+    }
+    return date;
+  }
+
+  let finalDate: string;
+
+  if (isDatePlausible) {
+    // If it's valid but missing time → inject current time
+    const fixed = ensureDateHasTime(parsedDate!);
+    finalDate = formatAsEAT(fixed);
+  } else {
+    // fallback: use current time in EAT
+    finalDate = formatAsEAT(utcNowToEAT());
+  }
 
   /** ----------------------- 🧾 SERVICE & SUBSERVICE ----------------------- **/
   let foundService: string | null = null;
