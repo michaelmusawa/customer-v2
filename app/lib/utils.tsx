@@ -238,18 +238,27 @@ export function extractFields(
   );
 
   // Step 1: Use cleanedText instead of normalized in your regex
+
   const dateCandidates = [
+    // Capture date + time first (priority)
     ...cleanedText.matchAll(
-      /\b(?:DATE|APPLICATION\s*DATE|INVOICE\s*DATE|DATE&TIME|BILLTO\s*DATE)\s*[:\-]?\s*([A-Z]{3,9}\s*\d{1,2},?\s*\d{2,4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/gi
+      /\b(?:DATE|DATE&TIME|APPLICATION\s*DATE|INVOICE\s*DATE|YOU WERE SERVED BY|BILLTO|DATE\s*&\s*TIME)\s*[:\-]?\s*([A-Z]{3,9}\s*\d{1,2},?\s*\d{2,4}\s+\d{1,2}[:.]\d{2}(?:\s*[AP]M)?|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\s+\d{1,2}[:.]\d{2}(?:\s*[AP]M)?)/gi
     ),
+
+    // Normal date (fallback)
     ...cleanedText.matchAll(
-      /\b(\d{1,2}[\/\-][A-Z]{3,9}[\/\-]?\d{2,4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|[A-Z]{3,9}\s*\d{1,2},?\s*\d{2,4})\b/gi
+      /\b([A-Z]{3,9}\s*\d{1,2},?\s*\d{2,4}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b/gi
     ),
   ].map((m) => m[1]);
 
   let parsedDate: Date | null = null;
 
-  for (const d of dateCandidates) {
+  // Prefer date+time
+  const sortedCandidates = dateCandidates.sort((a, b) =>
+    b.includes(":") ? 1 : -1
+  );
+
+  for (const d of sortedCandidates) {
     const clean = d.replace(/\s+/g, " ").trim();
     const date = new Date(clean);
     if (!isNaN(date.getTime())) {
