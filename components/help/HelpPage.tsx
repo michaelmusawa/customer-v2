@@ -34,8 +34,8 @@ export default function HelpPage({ user }: { user: string }) {
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
-    // Fetch latest.json
-    fetch("http://customerserviceapp.nairobi.go.ke/updates/latest.json")
+    // Fetch latest.json from the same origin
+    fetch("/updates/latest.json")
       .then((res) => res.json())
       .then((data: LatestJSON) => setLatest(data))
       .catch((err) => console.error("Failed to fetch latest.json:", err));
