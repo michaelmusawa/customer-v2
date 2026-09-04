@@ -4,7 +4,7 @@ import { FiFileText } from "react-icons/fi";
 // import { CollapsibleSection } from "../CollapsibleSection";
 
 const manualFiles = {
-  full: "/public/docs/user-manual-full.pdf",
+  full: "/docs/user-manual-full.pdf",
 };
 
 export const ComprehensiveManualSection: React.FC = () => {
